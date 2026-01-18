@@ -72,18 +72,32 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 			clone.Parent = rootPart
 			
 			if clone:IsA("ParticleEmitter") then
+				-- Scale star size to 0.3 of original
+				if clone.Name:lower():find("star") then
+					clone.Size = NumberSequence.new(clone.Size.Keypoints[1].Value * 0.3)
+				end
+				
+				-- Set opacity to 0.4 (transparency)
+				clone.Transparency = NumberSequence.new(0.6) -- 0.6 transparency = 0.4 opacity
+				
+				-- Make particles emit from back (negative Z direction)
+				clone.EmissionDirection = Enum.NormalId.Back
+				
 				clone.Enabled = false
 				table.insert(self.trailEmitters, clone)
 			elseif clone:IsA("Trail") then
-				-- Setup trail attachments
+				-- Set trail opacity to 0.4
+				clone.Transparency = NumberSequence.new(0.6)
+				
+				-- Setup trail attachments along Z-axis (back of character)
 				local attachment0 = Instance.new("Attachment")
 				attachment0.Name = "TrailAttachment0"
-				attachment0.Position = Vector3.new(0, 0, 0.5)
+				attachment0.Position = Vector3.new(0, 0, -1.5) -- Back of character
 				attachment0.Parent = rootPart
 				
 				local attachment1 = Instance.new("Attachment")
 				attachment1.Name = "TrailAttachment1"
-				attachment1.Position = Vector3.new(0, 0, -0.5)
+				attachment1.Position = Vector3.new(0, 0, -2.5) -- Further back
 				attachment1.Parent = rootPart
 				
 				clone.Attachment0 = attachment0
