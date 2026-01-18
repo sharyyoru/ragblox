@@ -37,9 +37,15 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 	idleAnim.AnimationId = idleAnimId
 	local moveAnim = Instance.new("Animation")
 	moveAnim.AnimationId = moveAnimId
+	local fallAnim = Instance.new("Animation")
+	fallAnim.AnimationId = "rbxassetid://85082207161803"
+	local landingAnim = Instance.new("Animation")
+	landingAnim.AnimationId = "rbxassetid://88443617112385"
 	
 	self.idleTrack = animator:LoadAnimation(idleAnim)
 	self.moveTrack = animator:LoadAnimation(moveAnim)
+	self.fallTrack = animator:LoadAnimation(fallAnim)
+	self.landingTrack = animator:LoadAnimation(landingAnim)
 	
 	-- Sound Setup
 	self.sound = nil
@@ -52,11 +58,13 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 	end
 	
 	self.isFlying = false
+	self.isFalling = false
 	self.connection = nil
 	self.flightSpeed = 90
 	self.verticalSpeed = 60
 	self.trailEmitters = {}
 	self.trailConnection = nil
+	self.groundCheckDistance = 10 -- Distance to detect ground for fall animation
 	
 	-- Setup trail VFX
 	local function setupTrailVFX()
@@ -170,17 +178,39 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 			-- Combine velocities
 			self.bv.Velocity = Vector3.new(horizontalVelocity.X, verticalVelocity, horizontalVelocity.Z)
 			
-			-- Animation switching based on movement
-			local isMoving = moveDir.Magnitude > 0 or verticalVelocity ~= 0
+			-- Check distance to ground for fall animation
+			local rayOrigin = rootPart.Position
+			local rayDirection = Vector3.new(0, -100, 0)
+			local rayParams = RaycastParams.new()
+			rayParams.FilterDescendantsInstances = {character}
+			rayParams.FilterType = Enum.RaycastFilterType.Exclude
 			
-			if isMoving then
+			local rayResult = workspace:Raycast(rayOrigin, rayDirection, rayParams)
+			local distanceToGround = rayResult and (rootPart.Position.Y - rayResult.Position.Y) or 100
+			
+			-- Animation switching based on movement and altitude
+			local isMoving = moveDir.Magnitude > 0 or verticalVelocity ~= 0
+			local isDescending = verticalVelocity < 0 or (distanceToGround < self.groundCheckDistance and self.bv.Velocity.Y <= 0)
+			
+			if isDescending and distanceToGround < self.groundCheckDistance then
+				-- Play fall animation when close to ground and descending
+				if not self.fallTrack.IsPlaying then
+					self.idleTrack:Stop()
+					self.moveTrack:Stop()
+					self.fallTrack:Play()
+					self.isFalling = true
+				end
+			elseif isMoving then
 				if not self.moveTrack.IsPlaying then
 					self.idleTrack:Stop()
+					self.fallTrack:Stop()
 					self.moveTrack:Play()
+					self.isFalling = false
 				end
 			else
-				if not self.idleTrack.IsPlaying then
+				if not self.idleTrack.IsPlaying and not self.isFalling then
 					self.moveTrack:Stop()
+					self.fallTrack:Stop()
 					self.idleTrack:Play()
 				end
 			end
@@ -208,6 +238,7 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 		self.bg.Parent = nil
 		self.idleTrack:Stop()
 		self.moveTrack:Stop()
+		self.fallTrack:Stop()
 		
 		if self.sound then
 			self.sound:Stop()
@@ -215,7 +246,11 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 		
 		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 		
-		print("[FlightModule] Flight stopped")
+		-- Play superhero landing animation
+		self.landingTrack:Play()
+		self.landingTrack.Stopped:Wait()
+		
+		print("[FlightModule] Flight stopped with landing")
 	end
 	
 	function self:Destroy()
@@ -227,6 +262,8 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 		if self.sound then self.sound:Destroy() end
 		if self.idleTrack then self.idleTrack:Destroy() end
 		if self.moveTrack then self.moveTrack:Destroy() end
+		if self.fallTrack then self.fallTrack:Destroy() end
+		if self.landingTrack then self.landingTrack:Destroy() end
 	end
 	
 	return self
