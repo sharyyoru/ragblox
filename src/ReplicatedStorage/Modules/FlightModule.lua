@@ -64,6 +64,9 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 	self.isFlying = false
 	self.isFalling = false
 	self.isLanding = false
+	self.hasRisen = false -- Track if player has risen above min height
+	self.minRiseHeight = 15 -- Must rise this high before fall can trigger
+	self.startHeight = 0 -- Starting Y position
 	self.connection = nil
 	self.flightSpeed = 90
 	self.verticalSpeed = 60
@@ -147,6 +150,8 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 	function self:Start()
 		if self.isFlying then return end
 		self.isFlying = true
+		self.hasRisen = false -- Reset rise tracking
+		self.startHeight = rootPart.Position.Y -- Record starting height
 		
 		-- Setup trail VFX
 		setupTrailVFX()
@@ -193,12 +198,20 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 			local rayResult = workspace:Raycast(rayOrigin, rayDirection, rayParams)
 			local distanceToGround = rayResult and (rootPart.Position.Y - rayResult.Position.Y) or 100
 			
+			-- Track if player has risen above minimum height
+			local currentHeight = rootPart.Position.Y
+			if not self.hasRisen and (currentHeight - self.startHeight) >= self.minRiseHeight then
+				self.hasRisen = true
+			end
+			
 			-- Animation switching based on movement and altitude
 			local isMoving = moveDir.Magnitude > 0 or verticalVelocity ~= 0
-			local isDescending = verticalVelocity < 0 or (distanceToGround < self.groundCheckDistance and self.bv.Velocity.Y <= 0)
+			-- Only consider descending if actively pressing LeftControl OR has risen and now falling
+			local isActivelyDescending = verticalVelocity < 0
+			local shouldPlayFall = self.hasRisen and isActivelyDescending and distanceToGround < self.groundCheckDistance
 			
-			if isDescending and distanceToGround < self.groundCheckDistance then
-				-- Play fall animation when close to ground and descending
+			if shouldPlayFall then
+				-- Play fall animation when close to ground and descending (after having risen)
 				if not self.fallTrack.IsPlaying then
 					self.idleTrack:Stop()
 					self.moveTrack:Stop()
