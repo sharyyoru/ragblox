@@ -19,7 +19,6 @@ local EquipToolEvent = InventoryRemotes and InventoryRemotes:WaitForChild("Equip
 local UnequipToolEvent = InventoryRemotes and InventoryRemotes:WaitForChild("UnequipTool")
 local GetInventoryEvent = InventoryRemotes and InventoryRemotes:WaitForChild("GetInventory")
 local InventoryUpdatedEvent = InventoryRemotes and InventoryRemotes:WaitForChild("InventoryUpdated")
-local SwitchCooldownEvent = InventoryRemotes and InventoryRemotes:WaitForChild("SwitchCooldown")
 
 -- Configuration
 local CONFIG = {

@@ -123,11 +123,38 @@ local function getWeaponId(tool)
 	return tool:GetAttribute("WeaponId") or tool.Name
 end
 
+-- Weapon switch cooldown check (defined early for use in onToolEquipped)
+local function canSwitchWeapon()
+	return (tick() - lastWeaponSwitchTime) >= WEAPON_SWITCH_COOLDOWN
+end
+
+local function getRemainingWeaponCooldown()
+	return math.max(0, WEAPON_SWITCH_COOLDOWN - (tick() - lastWeaponSwitchTime))
+end
+
 local function onToolEquipped(tool)
 	-- Prevent duplicate equips
 	if currentTool == tool and isEquipped then
 		print("[ToolController] Tool already equipped, skipping: " .. tool.Name)
 		return
+	end
+	
+	-- Check weapon switch cooldown (only if we already have a weapon equipped)
+	if currentTool and currentTool ~= tool and isEquipped then
+		if not canSwitchWeapon() then
+			print("[ToolController] Weapon switch blocked - cooldown: " .. string.format("%.1fs", getRemainingWeaponCooldown()))
+			-- Unequip the new tool and re-equip the old one
+			local previousTool = currentTool
+			task.defer(function()
+				if Humanoid and previousTool then
+					Humanoid:UnequipTools()
+					Humanoid:EquipTool(previousTool)
+				end
+			end)
+			return
+		end
+		-- Valid switch - update cooldown timer
+		lastWeaponSwitchTime = tick()
 	end
 	
 	print("[ToolController] Tool equipped: " .. tool.Name)
@@ -782,15 +809,6 @@ local function updateSprint()
 			animLoader:PlayAnimation("Idle", 0.2)
 		end
 	end
-end
-
--- Weapon switch cooldown check
-local function canSwitchWeapon()
-	return (tick() - lastWeaponSwitchTime) >= WEAPON_SWITCH_COOLDOWN
-end
-
-local function getRemainingWeaponCooldown()
-	return math.max(0, WEAPON_SWITCH_COOLDOWN - (tick() - lastWeaponSwitchTime))
 end
 
 -- Create weapon switch cooldown UI
