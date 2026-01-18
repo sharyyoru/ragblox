@@ -216,14 +216,11 @@ local function getInventoryData(player)
 		end
 	end
 	
-	local remainingCooldown = getRemainingCooldown(player)
-	
 	return {
 		Equipped = equipped,
 		Stored = stored,
 		MaxEquipped = InventoryManager.MAX_EQUIPPED,
 		EquippedCount = #equipped,
-		RemainingCooldown = remainingCooldown,
 	}
 end
 

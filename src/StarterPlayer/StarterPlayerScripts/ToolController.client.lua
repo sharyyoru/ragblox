@@ -79,11 +79,6 @@ local DASH_ANIM_ID = "rbxassetid://87044822854350"
 local DASH_COOLDOWN = 5
 local DASH_FORCE = 80
 local DASH_DURATION = 0.3
-local WEAPON_SWITCH_COOLDOWN = 12
-
--- Weapon switch state
-local lastWeaponSwitchTime = 0
-local weaponSwitchCooldownUI = nil
 
 -- Helper function to play a sound at a position (creates a temporary clone)
 local function playSound(soundId, volume, parent)
@@ -123,38 +118,11 @@ local function getWeaponId(tool)
 	return tool:GetAttribute("WeaponId") or tool.Name
 end
 
--- Weapon switch cooldown check (defined early for use in onToolEquipped)
-local function canSwitchWeapon()
-	return (tick() - lastWeaponSwitchTime) >= WEAPON_SWITCH_COOLDOWN
-end
-
-local function getRemainingWeaponCooldown()
-	return math.max(0, WEAPON_SWITCH_COOLDOWN - (tick() - lastWeaponSwitchTime))
-end
-
 local function onToolEquipped(tool)
 	-- Prevent duplicate equips
 	if currentTool == tool and isEquipped then
 		print("[ToolController] Tool already equipped, skipping: " .. tool.Name)
 		return
-	end
-	
-	-- Check weapon switch cooldown (only if we already have a weapon equipped)
-	if currentTool and currentTool ~= tool and isEquipped then
-		if not canSwitchWeapon() then
-			print("[ToolController] Weapon switch blocked - cooldown: " .. string.format("%.1fs", getRemainingWeaponCooldown()))
-			-- Unequip the new tool and re-equip the old one
-			local previousTool = currentTool
-			task.defer(function()
-				if Humanoid and previousTool then
-					Humanoid:UnequipTools()
-					Humanoid:EquipTool(previousTool)
-				end
-			end)
-			return
-		end
-		-- Valid switch - update cooldown timer
-		lastWeaponSwitchTime = tick()
 	end
 	
 	print("[ToolController] Tool equipped: " .. tool.Name)
@@ -811,113 +779,6 @@ local function updateSprint()
 	end
 end
 
--- Create weapon switch cooldown UI
-local function createWeaponSwitchUI()
-	local PlayerGui = Player:WaitForChild("PlayerGui")
-	
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "WeaponSwitchCooldown"
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.IgnoreGuiInset = true
-	screenGui.Parent = PlayerGui
-	
-	-- Position above skill cooldown UI (bottom center)
-	local frame = Instance.new("Frame")
-	frame.Name = "CooldownFrame"
-	frame.Size = UDim2.new(0, 140, 0, 36)
-	frame.Position = UDim2.new(0.5, -70, 1, -180)
-	frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-	frame.BackgroundTransparency = 0.1
-	frame.Visible = false
-	frame.Parent = screenGui
-	
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = frame
-	
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(251, 191, 36)
-	stroke.Thickness = 2
-	stroke.Parent = frame
-	
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.Text = "⚔️ Switch: 12.0s"
-	label.TextColor3 = Color3.fromRGB(251, 191, 36)
-	label.TextSize = 14
-	label.Font = Enum.Font.GothamBold
-	label.Parent = frame
-	
-	return screenGui
-end
-
--- Update weapon switch cooldown UI
-local function updateWeaponSwitchUI()
-	if not weaponSwitchCooldownUI then return end
-	
-	local frame = weaponSwitchCooldownUI:FindFirstChild("CooldownFrame")
-	if not frame then return end
-	
-	local remaining = getRemainingWeaponCooldown()
-	if remaining > 0 then
-		frame.Visible = true
-		local label = frame:FindFirstChild("Label")
-		if label then
-			label.Text = string.format("⚔️ Switch: %.1fs", remaining)
-		end
-	else
-		frame.Visible = false
-	end
-end
-
--- Handle weapon switching via number keys
-local function handleWeaponSwitch(slotNumber)
-	local Backpack = Player:FindFirstChild("Backpack")
-	if not Backpack then return end
-	
-	-- Get all tools in backpack and character
-	local tools = {}
-	for _, tool in ipairs(Backpack:GetChildren()) do
-		if tool:IsA("Tool") then
-			table.insert(tools, tool)
-		end
-	end
-	
-	-- Add currently equipped tool
-	if Character then
-		for _, child in ipairs(Character:GetChildren()) do
-			if child:IsA("Tool") then
-				table.insert(tools, 1, child) -- Put equipped tool first
-				break
-			end
-		end
-	end
-	
-	-- Check if slot exists
-	if slotNumber > #tools or slotNumber < 1 then return end
-	
-	local targetTool = tools[slotNumber]
-	if not targetTool then return end
-	
-	-- If already equipped, do nothing
-	if targetTool.Parent == Character then return end
-	
-	-- Check cooldown
-	if not canSwitchWeapon() then
-		print("[ToolController] Weapon switch on cooldown: " .. string.format("%.1fs", getRemainingWeaponCooldown()))
-		return
-	end
-	
-	-- Switch weapon
-	lastWeaponSwitchTime = tick()
-	Humanoid:EquipTool(targetTool)
-	
-	print("[ToolController] Switched to weapon slot " .. slotNumber .. ": " .. targetTool.Name)
-end
-
 -- Input handling
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
@@ -930,13 +791,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	-- Q key for dash
 	if input.KeyCode == Enum.KeyCode.Q then
 		handleDash()
-	end
-	
-	-- Number keys for weapon switching (1, 2)
-	if input.KeyCode == Enum.KeyCode.One then
-		handleWeaponSwitch(1)
-	elseif input.KeyCode == Enum.KeyCode.Two then
-		handleWeaponSwitch(2)
 	end
 	
 	-- Skill keys (Z, X, C, V, F)
@@ -1034,13 +888,7 @@ local char = Player.Character or Player.CharacterAdded:Wait()
 setupCharacter(char)
 Player.CharacterAdded:Connect(setupCharacter)
 
--- Create weapon switch cooldown UI
-weaponSwitchCooldownUI = createWeaponSwitchUI()
-
 -- Sprint update loop
 RunService.Heartbeat:Connect(updateSprint)
-
--- Weapon switch cooldown UI update loop
-RunService.Heartbeat:Connect(updateWeaponSwitchUI)
 
 print("[ToolController] Initialized")
