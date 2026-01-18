@@ -17,6 +17,7 @@ local DeathVFX = {}
 local CORPSE_FADE_TIME = 2 -- Seconds to fade corpse
 local CORPSE_CLEANUP_DELAY = 3 -- Seconds after death before cleanup starts
 local VFX_DURATION = 2.5 -- How long VFX plays before cleanup
+local SPARKLE_SIZE_MULTIPLIER = 3 -- Make sparkles 3x bigger
 
 -- Cache VFX template
 local VFX_FOLDER = ReplicatedStorage:WaitForChild("vfx")
@@ -40,29 +41,33 @@ local function getCharacterScale(character)
 	return math.max(0.5, math.min(scale, 5))
 end
 
--- Scale a ParticleEmitter based on character scale
+-- Scale a ParticleEmitter based on character scale and make it shoot upward
 local function scaleParticleEmitter(emitter, scale)
+	-- Apply 3x size multiplier on top of character scale
+	local totalScale = scale * SPARKLE_SIZE_MULTIPLIER
+	
 	-- Scale size
 	if emitter.Size then
 		local keypoints = emitter.Size.Keypoints
 		local newKeypoints = {}
 		for _, kp in ipairs(keypoints) do
-			table.insert(newKeypoints, NumberSequenceKeypoint.new(kp.Time, kp.Value * scale, kp.Envelope * scale))
+			table.insert(newKeypoints, NumberSequenceKeypoint.new(kp.Time, kp.Value * totalScale, kp.Envelope * totalScale))
 		end
 		emitter.Size = NumberSequence.new(newKeypoints)
 	end
 	
-	-- Scale speed
+	-- Scale speed (make particles shoot up faster)
 	if emitter.Speed then
-		local minSpeed = emitter.Speed.Min * scale
-		local maxSpeed = emitter.Speed.Max * scale
+		local minSpeed = emitter.Speed.Min * totalScale
+		local maxSpeed = emitter.Speed.Max * totalScale
 		emitter.Speed = NumberRange.new(minSpeed, maxSpeed)
 	end
 	
-	-- Scale emission area (spread)
-	if emitter.SpreadAngle then
-		-- Keep spread angle the same, it's angular
-	end
+	-- Force particles to shoot upward toward sky
+	emitter.EmissionDirection = Enum.NormalId.Top
+	
+	-- Narrow spread so particles go straight up
+	emitter.SpreadAngle = Vector2.new(15, 15)
 end
 
 -- Play death VFX on a character

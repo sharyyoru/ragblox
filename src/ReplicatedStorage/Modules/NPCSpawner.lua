@@ -167,12 +167,14 @@ function NPCSpawner:SpawnMob(areaName, mobName, spawnPoint)
 		humanoid.MaxHealth = config.MaxHealth
 		humanoid.Health = config.MaxHealth
 		humanoid.WalkSpeed = config.WalkSpeed
+		humanoid.BreakJointsOnDeath = false -- Disable default death animation
 	else
 		-- Create Humanoid if not exists
 		humanoid = Instance.new("Humanoid")
 		humanoid.MaxHealth = config.MaxHealth
 		humanoid.Health = config.MaxHealth
 		humanoid.WalkSpeed = config.WalkSpeed
+		humanoid.BreakJointsOnDeath = false -- Disable default death animation
 		humanoid.Parent = npc
 	end
 	

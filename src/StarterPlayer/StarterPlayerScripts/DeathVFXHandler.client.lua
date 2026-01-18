@@ -24,6 +24,9 @@ local function connectDeathHandler(humanoid, character)
 	if connectedHumanoids[humanoid] then return end
 	connectedHumanoids[humanoid] = true
 	
+	-- Disable default death animation (ragdoll/disassembly)
+	humanoid.BreakJointsOnDeath = false
+	
 	humanoid.Died:Connect(function()
 		-- Play death VFX (client-side visual)
 		DeathVFX.Play(character)
