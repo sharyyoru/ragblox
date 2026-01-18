@@ -414,10 +414,8 @@ local function stopFlight()
 	flightSkillInfo = nil
 	isUsingSkill = false
 	
-	-- Return to idle
-	if animLoader and not isSprinting then
-		animLoader:PlayAnimation("Idle", 0.2)
-	end
+	-- Note: Don't play idle here - FlightModule handles landing animation
+	-- and will change humanoid state after landing completes
 end
 
 -- Start flight skill

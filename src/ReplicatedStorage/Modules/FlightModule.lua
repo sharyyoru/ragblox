@@ -47,6 +47,10 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 	self.fallTrack = animator:LoadAnimation(fallAnim)
 	self.landingTrack = animator:LoadAnimation(landingAnim)
 	
+	-- Set animation priorities to prevent override
+	self.fallTrack.Priority = Enum.AnimationPriority.Action2
+	self.landingTrack.Priority = Enum.AnimationPriority.Action4
+	
 	-- Sound Setup
 	self.sound = nil
 	if soundId then
@@ -59,12 +63,13 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 	
 	self.isFlying = false
 	self.isFalling = false
+	self.isLanding = false
 	self.connection = nil
 	self.flightSpeed = 90
 	self.verticalSpeed = 60
 	self.trailEmitters = {}
 	self.trailConnection = nil
-	self.groundCheckDistance = 10 -- Distance to detect ground for fall animation
+	self.groundCheckDistance = 25 -- Distance to detect ground for fall animation
 	
 	-- Setup trail VFX
 	local function setupTrailVFX()
@@ -244,13 +249,25 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 			self.sound:Stop()
 		end
 		
-		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		-- Set landing flag to prevent other animations from interrupting
+		self.isLanding = true
 		
-		-- Play superhero landing animation
+		-- Play superhero landing animation BEFORE changing state
 		self.landingTrack:Play()
+		print("[FlightModule] Playing landing animation")
+		
+		-- Wait for landing animation to complete
 		self.landingTrack.Stopped:Wait()
 		
+		-- Now change state after animation completes
+		self.isLanding = false
+		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		
 		print("[FlightModule] Flight stopped with landing")
+	end
+	
+	function self:IsLanding()
+		return self.isLanding
 	end
 	
 	function self:Destroy()
