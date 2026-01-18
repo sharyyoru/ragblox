@@ -247,6 +247,44 @@ local Weapons = {
 			F = { SkillName = "Slam", DamageMultiplier = 2.5 },
 		},
 	},
+
+	["GreatSword"] = {
+		WeaponStyle = "2h",
+		BaseDamage = 99,
+		HitRange = 8,
+		AttackCooldown = 0.7,
+		ComboResetTime = 2.0,
+		
+		Skills = {
+			M1 = { 
+				Animation = "M1", 
+				DamageMultiplier = 1.0,
+			},
+			M2 = { 
+				Animation = "M2", 
+				DamageMultiplier = 1.2,
+			},
+			M3 = { 
+				Animation = "M3", 
+				DamageMultiplier = 1.5,
+			},
+			M4 = { 
+				Animation = "M4", 
+				DamageMultiplier = 2.0,
+				Knockback = 18,
+			},
+		},
+		
+		ComboSequence = {"M1", "M2", "M3", "M4"},
+		
+		SkillSlots = {
+			Z = { SkillName = "Bash", DamageMultiplier = 1.8 },
+			X = { SkillName = "Sweep", DamageMultiplier = 1.5 },
+			C = { SkillName = "Whirlwind", DamageMultiplier = 1.0 },
+			V = nil,
+			F = { SkillName = "Slam", DamageMultiplier = 2.5 },
+		},
+	},
 }
 
 -- Get weapon config by name

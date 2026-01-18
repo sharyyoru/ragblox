@@ -160,8 +160,8 @@ AttackRemote.OnServerEvent:Connect(function(player, skillName, skillRegistryName
 			return
 		end
 		
-		-- Check if multi-hit skill
-		isMultiHit = registrySkill.IsMultiHit or false
+		-- Check if multi-hit or channeled skill (both allow subsequent hits)
+		isMultiHit = registrySkill.IsMultiHit or registrySkill.IsChanneled or false
 		
 		-- Build skill config from registry + weapon slot multiplier
 		skillConfig = {

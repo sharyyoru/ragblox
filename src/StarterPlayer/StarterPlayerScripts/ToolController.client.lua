@@ -394,10 +394,10 @@ local function startChanneledSkill(slotKey, skillInfo)
 	channeledStartTime = tick()
 	isUsingSkill = true
 	
-	-- Play looping animation
+	-- Play animation (non-looped, 300 frames = 5 seconds)
 	local track, _ = skillHandler:PlayAnimation(Humanoid, slotKey)
 	if track then
-		track.Looped = true
+		track.Looped = false
 		channeledTrack = track
 	end
 	
