@@ -70,7 +70,7 @@ local function scaleParticleEmitter(emitter, scale)
 	emitter.SpreadAngle = Vector2.new(15, 15)
 end
 
--- Play death VFX on a character
+-- Play death VFX on a character (spawns at ground level, not attached to character)
 function DeathVFX.Play(character)
 	if not character then return end
 	
@@ -86,13 +86,40 @@ function DeathVFX.Play(character)
 	local scale = getCharacterScale(character)
 	print("[DeathVFX] Playing for " .. character.Name .. " with scale: " .. string.format("%.2f", scale))
 	
-	-- Clone the Sparkles VFX
-	local vfxClone = SPARKLES_VFX:Clone()
+	-- Get position at ground level (raycast down to find ground)
+	local groundPosition = hrp.Position
+	local rayOrigin = hrp.Position
+	local rayDirection = Vector3.new(0, -50, 0)
 	
-	-- Create attachment on character for VFX
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterDescendantsInstances = {character}
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	
+	local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+	if rayResult then
+		groundPosition = rayResult.Position
+	else
+		-- Fallback: use HRP position minus half character height
+		groundPosition = hrp.Position - Vector3.new(0, 3, 0)
+	end
+	
+	-- Create a stationary anchor part at ground level (NOT attached to character)
+	local anchorPart = Instance.new("Part")
+	anchorPart.Name = "DeathVFXAnchor"
+	anchorPart.Size = Vector3.new(1, 1, 1)
+	anchorPart.Position = groundPosition
+	anchorPart.Anchored = true
+	anchorPart.CanCollide = false
+	anchorPart.Transparency = 1
+	anchorPart.Parent = workspace
+	
+	-- Create attachment on the stationary part
 	local attachment = Instance.new("Attachment")
 	attachment.Name = "DeathVFXAttachment"
-	attachment.Parent = hrp
+	attachment.Parent = anchorPart
+	
+	-- Clone the Sparkles VFX
+	local vfxClone = SPARKLES_VFX:Clone()
 	
 	-- Handle different VFX types
 	if vfxClone:IsA("ParticleEmitter") then
@@ -119,13 +146,33 @@ function DeathVFX.Play(character)
 		end
 	else
 		-- Direct parent if it's something else
-		vfxClone.Parent = hrp
+		vfxClone.Parent = anchorPart
 	end
 	
-	-- Cleanup VFX after duration
-	Debris:AddItem(attachment, VFX_DURATION)
+	-- Immediately hide the character body
+	DeathVFX.HideCharacter(character)
+	
+	-- Cleanup VFX anchor after duration
+	Debris:AddItem(anchorPart, VFX_DURATION)
 	
 	return vfxClone
+end
+
+-- Immediately hide character (make invisible)
+function DeathVFX.HideCharacter(character)
+	if not character then return end
+	
+	-- Hide all parts immediately
+	for _, part in pairs(character:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Transparency = 1
+			part.CanCollide = false
+		elseif part:IsA("Decal") or part:IsA("Texture") then
+			part.Transparency = 1
+		end
+	end
+	
+	print("[DeathVFX] Character hidden: " .. character.Name)
 end
 
 -- Fade and cleanup corpse
