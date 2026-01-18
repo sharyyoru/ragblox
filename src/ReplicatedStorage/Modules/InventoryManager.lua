@@ -1,6 +1,6 @@
 --[[
 	InventoryManager Module
-	Handles inventory logic: 3 tool equip limit, 12s switch cooldown
+	Handles inventory logic: 2 tool equip limit
 	Place in ReplicatedStorage.Modules
 ]]
 
@@ -9,8 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local InventoryManager = {}
 
 -- Configuration
-InventoryManager.MAX_EQUIPPED = 3
-InventoryManager.SWITCH_COOLDOWN = 12
+InventoryManager.MAX_EQUIPPED = 2
 
 -- Item categories for filtering
 InventoryManager.Categories = {

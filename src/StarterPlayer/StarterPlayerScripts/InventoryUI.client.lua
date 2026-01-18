@@ -51,8 +51,7 @@ local CONFIG = {
 	TweenSpeed = 0.2,
 	
 	-- Layout
-	MaxEquipped = 3,
-	SwitchCooldown = 12,
+	MaxEquipped = 2,
 }
 
 -- State
@@ -61,12 +60,11 @@ local currentTab = "All"
 local searchQuery = ""
 local sortBy = "Name"
 local sortAscending = true
-local switchCooldownEnd = 0
 local inventoryData = nil
 
 -- UI References
 local ScreenGui, MainFrame, ItemsContainer, EquippedContainer
-local SearchBox, TabButtons, CooldownLabel
+local SearchBox, TabButtons
 
 -- Utility Functions
 local function createCorner(parent, radius)
@@ -167,15 +165,19 @@ local function createInventoryUI()
 	ScreenGui.ResetOnSpawn = false
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	ScreenGui.Enabled = false
+	ScreenGui.IgnoreGuiInset = true
 	ScreenGui.Parent = PlayerGui
 	
-	-- Backdrop
+	-- Backdrop (full screen)
 	local backdrop = Instance.new("Frame")
 	backdrop.Name = "Backdrop"
 	backdrop.Size = UDim2.new(1, 0, 1, 0)
+	backdrop.Position = UDim2.new(0, 0, 0, 0)
+	backdrop.AnchorPoint = Vector2.new(0, 0)
 	backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	backdrop.BackgroundTransparency = 0.5
 	backdrop.BorderSizePixel = 0
+	backdrop.ZIndex = 1
 	backdrop.Parent = ScreenGui
 	
 	backdrop.InputBegan:Connect(function(input)
@@ -184,13 +186,15 @@ local function createInventoryUI()
 		end
 	end)
 	
-	-- Main container
+	-- Main container (centered)
 	MainFrame = Instance.new("Frame")
 	MainFrame.Name = "MainFrame"
 	MainFrame.Size = UDim2.new(0, 900, 0, 600)
-	MainFrame.Position = UDim2.new(0.5, -450, 0.5, -300)
+	MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 	MainFrame.BackgroundColor3 = CONFIG.BackgroundColor
 	MainFrame.BorderSizePixel = 0
+	MainFrame.ZIndex = 2
 	MainFrame.Parent = ScreenGui
 	
 	createCorner(MainFrame, 16)
@@ -236,25 +240,11 @@ local function createInventoryUI()
 	equippedLabel.Position = UDim2.new(0.5, -75, 0.5, -15)
 	equippedLabel.BackgroundColor3 = CONFIG.CardColor
 	equippedLabel.TextColor3 = CONFIG.TextColor
-	equippedLabel.Text = "Equipped: 0/3"
+	equippedLabel.Text = "Equipped: 0/2"
 	equippedLabel.TextSize = 14
 	equippedLabel.Font = Enum.Font.GothamMedium
 	equippedLabel.Parent = header
 	createCorner(equippedLabel, 6)
-	
-	-- Cooldown indicator
-	CooldownLabel = Instance.new("TextLabel")
-	CooldownLabel.Name = "CooldownLabel"
-	CooldownLabel.Size = UDim2.new(0, 120, 0, 30)
-	CooldownLabel.Position = UDim2.new(0.5, 85, 0.5, -15)
-	CooldownLabel.BackgroundColor3 = CONFIG.CardColor
-	CooldownLabel.TextColor3 = CONFIG.WarningColor
-	CooldownLabel.Text = ""
-	CooldownLabel.TextSize = 12
-	CooldownLabel.Font = Enum.Font.GothamMedium
-	CooldownLabel.Visible = false
-	CooldownLabel.Parent = header
-	createCorner(CooldownLabel, 6)
 	
 	-- Close button
 	local closeButton = Instance.new("TextButton")
@@ -626,11 +616,6 @@ local function createItemCard(itemData, isEquipped)
 	end)
 	
 	actionButton.MouseButton1Click:Connect(function()
-		-- Check cooldown
-		if tick() < switchCooldownEnd then
-			return
-		end
-		
 		if isEquipped then
 			UnequipToolEvent:FireServer(itemData.Name)
 		else
@@ -682,7 +667,6 @@ local function createEquippedSlot(itemData, index)
 		createCorner(unequipBtn, 4)
 		
 		unequipBtn.MouseButton1Click:Connect(function()
-			if tick() < switchCooldownEnd then return end
 			UnequipToolEvent:FireServer(itemData.Name)
 		end)
 	else
@@ -848,19 +832,14 @@ function openInventory()
 		end
 	end
 	
-	-- Update cooldown
-	if inventoryData.RemainingCooldown and inventoryData.RemainingCooldown > 0 then
-		switchCooldownEnd = tick() + inventoryData.RemainingCooldown
-	end
-	
 	refreshItems()
 	
 	ScreenGui.Enabled = true
-	MainFrame.Position = UDim2.new(0.5, -450, 0.6, -300)
+	MainFrame.Position = UDim2.new(0.5, 0, 0.55, 0)
 	MainFrame.BackgroundTransparency = 1
 	
 	tweenProperty(MainFrame, {
-		Position = UDim2.new(0.5, -450, 0.5, -300),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
 		BackgroundTransparency = 0
 	}, 0.3)
 end
@@ -871,7 +850,7 @@ function closeInventory()
 	isOpen = false
 	
 	tweenProperty(MainFrame, {
-		Position = UDim2.new(0.5, -450, 0.6, -300),
+		Position = UDim2.new(0.5, 0, 0.55, 0),
 		BackgroundTransparency = 1
 	}, 0.2)
 	
@@ -880,22 +859,6 @@ function closeInventory()
 			ScreenGui.Enabled = false
 		end
 	end)
-end
-
--- Handle cooldown updates
-local function updateCooldownDisplay()
-	while true do
-		if isOpen and CooldownLabel then
-			local remaining = switchCooldownEnd - tick()
-			if remaining > 0 then
-				CooldownLabel.Visible = true
-				CooldownLabel.Text = string.format("⏱️ %.1fs", remaining)
-			else
-				CooldownLabel.Visible = false
-			end
-		end
-		task.wait(0.1)
-	end
 end
 
 -- Initialize
@@ -913,13 +876,6 @@ local function init()
 		end)
 	end
 	
-	-- Listen for cooldown updates
-	if SwitchCooldownEvent then
-		SwitchCooldownEvent.OnClientEvent:Connect(function(cooldownTime)
-			switchCooldownEnd = tick() + cooldownTime
-		end)
-	end
-	
 	-- Keyboard shortcut (I key)
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
@@ -932,9 +888,6 @@ local function init()
 			end
 		end
 	end)
-	
-	-- Start cooldown display updater
-	task.spawn(updateCooldownDisplay)
 	
 	print("[InventoryUI] Inventory system initialized")
 end

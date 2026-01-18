@@ -1,6 +1,6 @@
 --[[
 	InventoryServer Script
-	Handles server-side inventory logic: 3 tool limit, 12s switch cooldown
+	Handles server-side inventory logic: 2 tool limit
 	Place in ServerScriptService
 ]]
 
@@ -32,18 +32,13 @@ local InventoryUpdatedEvent = Instance.new("RemoteEvent")
 InventoryUpdatedEvent.Name = "InventoryUpdated"
 InventoryUpdatedEvent.Parent = InventoryFolder
 
-local SwitchCooldownEvent = Instance.new("RemoteEvent")
-SwitchCooldownEvent.Name = "SwitchCooldown"
-SwitchCooldownEvent.Parent = InventoryFolder
-
 -- Player data storage
 local PlayerData = {}
 
 -- Initialize player data
 local function initPlayerData(player)
 	PlayerData[player] = {
-		EquippedTools = {}, -- List of equipped tool names (max 3)
-		LastSwitchTime = 0, -- For cooldown tracking
+		EquippedTools = {}, -- List of equipped tool names (max 2)
 		Inventory = {}, -- All owned items
 	}
 end
@@ -94,39 +89,10 @@ local function getEquippedTools(player)
 	return tools
 end
 
--- Check if player can switch tools (cooldown check)
-local function canSwitchTool(player)
-	local data = PlayerData[player]
-	if not data then return false end
-	
-	local currentTime = tick()
-	local timeSinceSwitch = currentTime - data.LastSwitchTime
-	
-	return timeSinceSwitch >= InventoryManager.SWITCH_COOLDOWN
-end
-
--- Get remaining cooldown time
-local function getRemainingCooldown(player)
-	local data = PlayerData[player]
-	if not data then return 0 end
-	
-	local currentTime = tick()
-	local timeSinceSwitch = currentTime - data.LastSwitchTime
-	local remaining = InventoryManager.SWITCH_COOLDOWN - timeSinceSwitch
-	
-	return math.max(0, remaining)
-end
-
 -- Equip a tool from storage
 local function equipTool(player, toolName)
 	local data = PlayerData[player]
 	if not data then return false, "Player data not found" end
-	
-	-- Check cooldown
-	if not canSwitchTool(player) then
-		local remaining = getRemainingCooldown(player)
-		return false, string.format("Switch on cooldown (%.1fs remaining)", remaining)
-	end
 	
 	-- Check equip limit
 	local equippedCount = getEquippedCount(player)
@@ -161,12 +127,6 @@ local function equipTool(player, toolName)
 	local toolClone = tool:Clone()
 	toolClone.Parent = backpack
 	
-	-- Update switch time
-	data.LastSwitchTime = tick()
-	
-	-- Notify client of cooldown
-	SwitchCooldownEvent:FireClient(player, InventoryManager.SWITCH_COOLDOWN)
-	
 	-- Notify client of inventory update
 	InventoryUpdatedEvent:FireClient(player)
 	
@@ -177,12 +137,6 @@ end
 local function unequipTool(player, toolName)
 	local data = PlayerData[player]
 	if not data then return false, "Player data not found" end
-	
-	-- Check cooldown
-	if not canSwitchTool(player) then
-		local remaining = getRemainingCooldown(player)
-		return false, string.format("Switch on cooldown (%.1fs remaining)", remaining)
-	end
 	
 	-- Find the tool in backpack or character
 	local tool = nil
@@ -220,12 +174,6 @@ local function unequipTool(player, toolName)
 	end
 	
 	tool.Parent = playerFolder
-	
-	-- Update switch time
-	data.LastSwitchTime = tick()
-	
-	-- Notify client of cooldown
-	SwitchCooldownEvent:FireClient(player, InventoryManager.SWITCH_COOLDOWN)
 	
 	-- Notify client of inventory update
 	InventoryUpdatedEvent:FireClient(player)
