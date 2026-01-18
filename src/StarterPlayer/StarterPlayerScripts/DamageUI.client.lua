@@ -271,7 +271,7 @@ local function playHitSound(worldPosition)
 	end)
 end
 
--- Spawn hit VFX at position
+-- Spawn hit VFX at position (plays once, no looping)
 local function spawnHitVFX(worldPosition)
 	-- Create attachment at hit position
 	local part = Instance.new("Part")
@@ -287,14 +287,16 @@ local function spawnHitVFX(worldPosition)
 	local vfxClone = NormalHitVFX:Clone()
 	vfxClone.Parent = part
 	
-	-- Emit particles if it's a ParticleEmitter (10% of normal size)
+	-- Emit particles once (disable looping)
 	if vfxClone:IsA("ParticleEmitter") then
+		vfxClone.Enabled = false -- Disable looping
 		local emitCount = vfxClone:GetAttribute("EmitCount") or 15
 		vfxClone:Emit(math.max(1, math.floor(emitCount * 0.1)))
 	else
 		-- If it's a folder/model with multiple emitters
 		for _, child in pairs(vfxClone:GetDescendants()) do
 			if child:IsA("ParticleEmitter") then
+				child.Enabled = false -- Disable looping
 				local emitCount = child:GetAttribute("EmitCount") or 10
 				child:Emit(math.max(1, math.floor(emitCount * 0.1)))
 			end

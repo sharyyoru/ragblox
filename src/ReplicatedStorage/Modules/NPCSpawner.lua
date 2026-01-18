@@ -15,6 +15,7 @@ local MobConfig = require(Modules:WaitForChild("MobConfig"))
 local MobAI = require(Modules:WaitForChild("MobAI"))
 local WeaponRegistry = require(Modules:WaitForChild("WeaponRegistry"))
 local AnimationLoader = require(Modules:WaitForChild("AnimationLoader"))
+local DeathVFX = require(Modules:WaitForChild("DeathVFX"))
 
 local NPCSpawner = {}
 NPCSpawner.__index = NPCSpawner
@@ -286,14 +287,14 @@ function NPCSpawner:OnMobDeath(npc, areaName, mobName, spawnPoint, config)
 	-- Remove from tracking
 	self.SpawnedMobs[spawnId] = nil
 	
-	-- Schedule respawn
+	-- Play death VFX and cleanup corpse (server-side)
+	-- VFX is handled client-side via DeathVFXHandler
+	-- Server handles corpse cleanup after delay
+	DeathVFX.CleanupCorpse(npc, 3) -- 3 second delay before fade
+	
+	-- Schedule respawn after corpse is cleaned up
 	task.delay(config.RespawnTime, function()
-		-- Destroy old NPC
-		if npc and npc.Parent then
-			npc:Destroy()
-		end
-		
-		-- Respawn
+		-- Respawn at spawn point
 		self:SpawnMob(areaName, mobName, spawnPoint)
 	end)
 	
