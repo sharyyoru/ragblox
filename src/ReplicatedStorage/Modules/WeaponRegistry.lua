@@ -35,6 +35,16 @@ local WeaponRegistry = {}
 		},
 		
 		ComboSequence = {"Skill1", "Skill2", ...},  -- Order of combo attacks
+		
+		-- Skill Slots (Z, X, C, V, F) - nil means empty slot
+		-- Each slot references a skill from SkillRegistry with optional damage multiplier
+		SkillSlots = {
+			Z = { SkillName = "Bash", DamageMultiplier = 1.5 },
+			X = { SkillName = "Sweep", DamageMultiplier = 1.2 },
+			C = nil,  -- Empty slot
+			V = nil,  -- Empty slot
+			F = { SkillName = "Slam", DamageMultiplier = 2.0 },
+		},
 	}
 ]]
 
@@ -102,6 +112,15 @@ local DEFAULT_WEAPON = {
 	},
 	
 	ComboSequence = {"M1", "M2", "M3", "M4"},
+	
+	-- Skill slots (Z, X, C, V, F) - nil means empty
+	SkillSlots = {
+		Z = nil,
+		X = nil,
+		C = nil,
+		V = nil,
+		F = nil,
+	},
 }
 
 -- Weapon Configurations
@@ -138,6 +157,15 @@ local Weapons = {
 		},
 		
 		ComboSequence = {"M1", "M2", "M3", "M4"},
+		
+		-- Skill slots (Z, X, C, V, F)
+		SkillSlots = {
+			Z = { SkillName = "Bash", DamageMultiplier = 1.5 },
+			X = nil,
+			C = nil,
+			V = nil,
+			F = nil,
+		},
 	},
 	
 	["Tomahawk"] = {
@@ -168,6 +196,14 @@ local Weapons = {
 		},
 		
 		ComboSequence = {"M1", "M2", "M3", "M4"},
+		
+		SkillSlots = {
+			Z = { SkillName = "Bash", DamageMultiplier = 1.4 },
+			X = nil,
+			C = nil,
+			V = nil,
+			F = nil,
+		},
 	},
 	
 	--[[
@@ -202,6 +238,14 @@ local Weapons = {
 		},
 		
 		ComboSequence = {"M1", "M2", "M3", "M4"},
+		
+		SkillSlots = {
+			Z = { SkillName = "Bash", DamageMultiplier = 1.8 },
+			X = { SkillName = "Sweep", DamageMultiplier = 1.5 },
+			C = nil,
+			V = nil,
+			F = { SkillName = "Slam", DamageMultiplier = 2.5 },
+		},
 	},
 }
 
@@ -310,6 +354,49 @@ end
 -- Get default weapon config
 function WeaponRegistry.GetDefault()
 	return DEFAULT_WEAPON
+end
+
+-- Get skill slots for a weapon
+function WeaponRegistry.GetSkillSlots(weaponName)
+	local weapon = WeaponRegistry.GetWeapon(weaponName)
+	return weapon.SkillSlots or {}
+end
+
+-- Get skill slot config for a specific key (Z, X, C, V, F)
+function WeaponRegistry.GetSkillSlot(weaponName, slotKey)
+	local weapon = WeaponRegistry.GetWeapon(weaponName)
+	if weapon.SkillSlots then
+		return weapon.SkillSlots[slotKey]
+	end
+	return nil
+end
+
+-- Get all active skill slots (non-nil) for a weapon
+function WeaponRegistry.GetActiveSkillSlots(weaponName)
+	local weapon = WeaponRegistry.GetWeapon(weaponName)
+	local activeSlots = {}
+	
+	if weapon.SkillSlots then
+		for slotKey, slotData in pairs(weapon.SkillSlots) do
+			if slotData then
+				activeSlots[slotKey] = slotData
+			end
+		end
+	end
+	
+	return activeSlots
+end
+
+-- Calculate damage for a skill slot
+function WeaponRegistry.CalculateSkillSlotDamage(weaponName, slotKey)
+	local weapon = WeaponRegistry.GetWeapon(weaponName)
+	local slotData = weapon.SkillSlots and weapon.SkillSlots[slotKey]
+	
+	if not slotData then
+		return weapon.BaseDamage
+	end
+	
+	return math.floor(weapon.BaseDamage * (slotData.DamageMultiplier or 1.0))
 end
 
 return WeaponRegistry

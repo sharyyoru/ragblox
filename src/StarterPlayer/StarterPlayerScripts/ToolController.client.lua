@@ -18,6 +18,8 @@ local Modules = ReplicatedStorage:WaitForChild("Modules")
 local AnimationLoader = require(Modules:WaitForChild("AnimationLoader"))
 local CombatHandler = require(Modules:WaitForChild("CombatHandler"))
 local WeaponRegistry = require(Modules:WaitForChild("WeaponRegistry"))
+local SkillHandler = require(Modules:WaitForChild("SkillHandler"))
+local SkillRegistry = require(Modules:WaitForChild("SkillRegistry"))
 
 print("[ToolController] Modules loaded")
 
@@ -33,9 +35,21 @@ local Humanoid = nil
 local currentTool = nil
 local animLoader = nil
 local combatHandler = nil
+local skillHandler = nil
 local isSprinting = false
 local isEquipped = false
+local isUsingSkill = false
 local currentWeaponStyle = "1h"
+local currentWeaponName = nil
+
+-- Skill key mappings
+local SKILL_KEYS = {
+	[Enum.KeyCode.Z] = "Z",
+	[Enum.KeyCode.X] = "X",
+	[Enum.KeyCode.C] = "C",
+	[Enum.KeyCode.V] = "V",
+	[Enum.KeyCode.F] = "F",
+}
 
 -- Constants
 local SPRINT_SPEED = 24
@@ -123,7 +137,20 @@ local function onToolEquipped(tool)
 	isEquipped = true
 	
 	currentWeaponStyle = getWeaponStyle(tool)
+	currentWeaponName = getWeaponId(tool)
 	print("[ToolController] Weapon style: " .. currentWeaponStyle)
+	
+	-- Initialize skill handler for this weapon
+	skillHandler = SkillHandler.new()
+	skillHandler:SetWeapon(currentWeaponName)
+	
+	-- Setup skill cooldown callback for UI
+	skillHandler.OnCooldownStart = function(slotKey, duration, skillName)
+		local cooldownEvent = Player:FindFirstChild("SkillCooldownEvent")
+		if cooldownEvent then
+			cooldownEvent:Fire(slotKey, duration)
+		end
+	end
 	
 	-- Create animation loader for this weapon style
 	animLoader = AnimationLoader.new(Character, currentWeaponStyle)
@@ -181,6 +208,7 @@ local function onToolUnequipped(tool)
 	if tool == currentTool then
 		isEquipped = false
 		isSprinting = false
+		isUsingSkill = false
 		
 		if Humanoid then
 			Humanoid.WalkSpeed = WALK_SPEED
@@ -196,7 +224,62 @@ local function onToolUnequipped(tool)
 			animLoader = nil
 		end
 		
+		-- Clean up skill handler
+		skillHandler = nil
+		currentWeaponName = nil
+		
 		currentTool = nil
+	end
+end
+
+-- Skill execution handler
+local function handleSkill(slotKey)
+	if not isEquipped or not skillHandler then return end
+	if isDashing or isUsingSkill then return end
+	if combatHandler and combatHandler:IsCurrentlyAttacking() then return end
+	
+	-- Try to use the skill
+	local skillInfo, result = skillHandler:UseSkill(slotKey)
+	
+	if not skillInfo then
+		print("[ToolController] Skill not available: " .. result)
+		return
+	end
+	
+	print("[ToolController] Using skill: " .. skillInfo.DisplayName .. " (" .. slotKey .. ")")
+	
+	isUsingSkill = true
+	
+	-- Play skill animation
+	local track, hitTime = skillHandler:PlayAnimation(Humanoid, slotKey)
+	
+	if track then
+		-- Play swing sound at hit time
+		task.delay(hitTime or 0.2, function()
+			if Character then
+				swingSound.Parent = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
+				swingSound:Play()
+			end
+			
+			-- Fire to server for hit detection
+			AttackRemote:FireServer("Skill_" .. slotKey, skillInfo.SkillName)
+		end)
+		
+		-- Wait for animation to finish
+		track.Stopped:Once(function()
+			isUsingSkill = false
+			-- Return to idle if not moving
+			if animLoader and not isSprinting then
+				animLoader:PlayAnimation("Idle", 0.2)
+			end
+		end)
+		
+		-- Fallback: reset after duration
+		task.delay(skillInfo.Duration or 1, function()
+			isUsingSkill = false
+		end)
+	else
+		isUsingSkill = false
 	end
 end
 
@@ -206,7 +289,7 @@ local function handleAttack()
 		return 
 	end
 	
-	if isDashing then return end -- Can't attack while dashing
+	if isDashing or isUsingSkill then return end -- Can't attack while dashing or using skill
 	
 	print("[ToolController] Attacking...")
 	local success, skillName, animName = combatHandler:Attack()
@@ -353,6 +436,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	-- Q key for dash
 	if input.KeyCode == Enum.KeyCode.Q then
 		handleDash()
+	end
+	
+	-- Skill keys (Z, X, C, V, F)
+	local slotKey = SKILL_KEYS[input.KeyCode]
+	if slotKey then
+		handleSkill(slotKey)
 	end
 end)
 

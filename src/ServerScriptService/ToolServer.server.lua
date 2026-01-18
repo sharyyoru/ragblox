@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Wait for modules
 local Modules = ReplicatedStorage:WaitForChild("Modules")
 local WeaponRegistry = require(Modules:WaitForChild("WeaponRegistry"))
+local SkillRegistry = require(Modules:WaitForChild("SkillRegistry"))
 
 -- Create Remotes folder if it doesn't exist
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
@@ -117,7 +118,7 @@ local function applyKnockback(targetHRP, attackerPosition, force)
 	end)
 end
 
-AttackRemote.OnServerEvent:Connect(function(player, skillName)
+AttackRemote.OnServerEvent:Connect(function(player, skillName, skillRegistryName)
 	local character = player.Character
 	if not character then return end
 	
@@ -134,11 +135,57 @@ AttackRemote.OnServerEvent:Connect(function(player, skillName)
 	-- Get weapon config
 	local weaponId = getWeaponId(tool)
 	local weaponConfig = WeaponRegistry.GetWeapon(weaponId)
-	local skillConfig = weaponConfig.Skills[skillName]
 	
-	if not skillConfig then
-		warn("[ToolServer] Unknown skill: " .. tostring(skillName) .. " for weapon: " .. weaponId)
-		return
+	-- Check if this is a skill slot attack (Skill_Z, Skill_X, etc.)
+	local isSkillSlotAttack = string.match(skillName, "^Skill_(%a)$")
+	local skillConfig = nil
+	local damage = 0
+	local hitRange = weaponConfig.HitRange or 6
+	
+	if isSkillSlotAttack then
+		-- Skill slot attack - get config from SkillRegistry and weapon slot
+		local slotKey = isSkillSlotAttack
+		local slotData = WeaponRegistry.GetSkillSlot(weaponId, slotKey)
+		
+		if not slotData then
+			warn("[ToolServer] No skill in slot " .. slotKey .. " for weapon: " .. weaponId)
+			return
+		end
+		
+		local registrySkill = SkillRegistry.GetSkill(slotData.SkillName)
+		if not registrySkill then
+			warn("[ToolServer] Unknown skill in registry: " .. tostring(slotData.SkillName))
+			return
+		end
+		
+		-- Build skill config from registry + weapon slot multiplier
+		skillConfig = {
+			Animation = registrySkill.Animation,
+			DamageMultiplier = slotData.DamageMultiplier or 1.0,
+			Cooldown = registrySkill.Cooldown,
+			Range = hitRange * (registrySkill.RangeMultiplier or 1.0),
+			IsAoE = registrySkill.IsAoE,
+			AoERadius = registrySkill.AoERadius,
+			Knockback = registrySkill.Knockback,
+		}
+		
+		-- Calculate damage using weapon base damage and slot multiplier
+		damage = math.floor(weaponConfig.BaseDamage * (slotData.DamageMultiplier or 1.0))
+		hitRange = skillConfig.Range
+		
+		-- Use skill name for cooldown tracking
+		skillName = slotData.SkillName .. "_" .. slotKey
+	else
+		-- Regular M1-M4 attack
+		skillConfig = weaponConfig.Skills[skillName]
+		
+		if not skillConfig then
+			warn("[ToolServer] Unknown skill: " .. tostring(skillName) .. " for weapon: " .. weaponId)
+			return
+		end
+		
+		damage = WeaponRegistry.CalculateDamage(weaponId, skillName)
+		hitRange = skillConfig.Range or weaponConfig.HitRange or 6
 	end
 	
 	-- Check base attack cooldown
@@ -161,12 +208,6 @@ AttackRemote.OnServerEvent:Connect(function(player, skillName)
 	end
 	
 	playerCooldowns[player] = currentTime
-	
-	-- Calculate damage
-	local damage = WeaponRegistry.CalculateDamage(weaponId, skillName)
-	
-	-- Get hit range (skill-specific or weapon default)
-	local hitRange = skillConfig.Range or weaponConfig.HitRange or 6
 	
 	-- Get enemies in range
 	local enemies = getNearbyEnemies(character, hitRange)
