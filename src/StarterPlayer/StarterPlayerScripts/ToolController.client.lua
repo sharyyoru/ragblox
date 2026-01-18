@@ -841,6 +841,22 @@ local function setupCharacter(char)
 	Character = char
 	Humanoid = char:WaitForChild("Humanoid")
 	
+	-- Cleanup previous flight instance on respawn
+	if flightInstance then
+		flightInstance:Destroy()
+		flightInstance = nil
+	end
+	flightActive = false
+	flightSlotKey = nil
+	flightSkillInfo = nil
+	
+	-- Cleanup channeled skill state
+	channeledSkillActive = false
+	channeledSlotKey = nil
+	channeledSkillInfo = nil
+	channeledTrack = nil
+	isUsingSkill = false
+	
 	-- Check for already equipped tool in character
 	for _, child in ipairs(char:GetChildren()) do
 		if child:IsA("Tool") then

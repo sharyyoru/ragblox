@@ -194,7 +194,7 @@ local Skills = {
 		MoveAnimation = "rbxassetid://138146725325662",
 		Sound = "rbxassetid://3308152153",
 		Cooldown = 8,
-		Duration = 10.0, -- Max flight duration
+		Duration = 120.0, -- Max flight duration (2 minutes)
 		
 		-- Channel/Hold configuration
 		IsChanneled = true,

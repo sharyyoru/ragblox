@@ -1,12 +1,18 @@
 --[[
 	FlightModule - Handles flying mechanics for Flight skill
 	Used by ToolController for channeled flight ability
+	Features: Spacebar altitude, WASD movement, trail VFX
 ]]
 
 local FlightModule = {}
 
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Flight VFX path
+local VFX_FOLDER_PATH = "vfx/flight"
 
 function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 	local self = {}
@@ -48,10 +54,75 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 	self.isFlying = false
 	self.connection = nil
 	self.flightSpeed = 90
+	self.verticalSpeed = 60
+	self.trailEmitters = {}
+	self.trailConnection = nil
+	
+	-- Setup trail VFX
+	local function setupTrailVFX()
+		local vfxFolder = ReplicatedStorage:FindFirstChild("vfx")
+		if not vfxFolder then return end
+		
+		local flightFolder = vfxFolder:FindFirstChild("flight")
+		if not flightFolder then return end
+		
+		-- Clone trail emitters and attach to character
+		for _, vfx in ipairs(flightFolder:GetChildren()) do
+			local clone = vfx:Clone()
+			clone.Parent = rootPart
+			
+			if clone:IsA("ParticleEmitter") then
+				clone.Enabled = false
+				table.insert(self.trailEmitters, clone)
+			elseif clone:IsA("Trail") then
+				-- Setup trail attachments
+				local attachment0 = Instance.new("Attachment")
+				attachment0.Name = "TrailAttachment0"
+				attachment0.Position = Vector3.new(0, 0, 0.5)
+				attachment0.Parent = rootPart
+				
+				local attachment1 = Instance.new("Attachment")
+				attachment1.Name = "TrailAttachment1"
+				attachment1.Position = Vector3.new(0, 0, -0.5)
+				attachment1.Parent = rootPart
+				
+				clone.Attachment0 = attachment0
+				clone.Attachment1 = attachment1
+				clone.Enabled = false
+				table.insert(self.trailEmitters, clone)
+				table.insert(self.trailEmitters, attachment0)
+				table.insert(self.trailEmitters, attachment1)
+			end
+		end
+		
+		print("[FlightModule] Trail VFX setup complete: " .. #self.trailEmitters .. " effects")
+	end
+	
+	-- Enable/disable trail effects
+	local function setTrailEnabled(enabled)
+		for _, emitter in ipairs(self.trailEmitters) do
+			if emitter:IsA("ParticleEmitter") or emitter:IsA("Trail") then
+				emitter.Enabled = enabled
+			end
+		end
+	end
+	
+	-- Cleanup trail effects
+	local function cleanupTrailVFX()
+		for _, emitter in ipairs(self.trailEmitters) do
+			if emitter then
+				emitter:Destroy()
+			end
+		end
+		self.trailEmitters = {}
+	end
 	
 	function self:Start()
 		if self.isFlying then return end
 		self.isFlying = true
+		
+		-- Setup trail VFX
+		setupTrailVFX()
 		
 		self.bv.Parent = rootPart
 		self.bg.Parent = rootPart
@@ -62,14 +133,33 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 			self.sound:Play()
 		end
 		
+		-- Enable trail effects
+		setTrailEnabled(true)
+		
 		self.connection = RunService.RenderStepped:Connect(function()
 			if not self.isFlying then return end
 			
 			self.bg.CFrame = camera.CFrame
-			local moveDir = humanoid.MoveDirection
-			self.bv.Velocity = moveDir * self.flightSpeed
 			
-			if moveDir.Magnitude > 0 then
+			-- Horizontal movement from WASD
+			local moveDir = humanoid.MoveDirection
+			local horizontalVelocity = Vector3.new(moveDir.X, 0, moveDir.Z) * self.flightSpeed
+			
+			-- Vertical movement from Space (up) and LeftControl (down)
+			local verticalVelocity = 0
+			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+				verticalVelocity = self.verticalSpeed
+			elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+				verticalVelocity = -self.verticalSpeed
+			end
+			
+			-- Combine velocities
+			self.bv.Velocity = Vector3.new(horizontalVelocity.X, verticalVelocity, horizontalVelocity.Z)
+			
+			-- Animation switching based on movement
+			local isMoving = moveDir.Magnitude > 0 or verticalVelocity ~= 0
+			
+			if isMoving then
 				if not self.moveTrack.IsPlaying then
 					self.idleTrack:Stop()
 					self.moveTrack:Play()
@@ -94,6 +184,12 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 			self.connection = nil
 		end
 		
+		-- Disable and cleanup trail effects
+		setTrailEnabled(false)
+		task.delay(0.5, function()
+			cleanupTrailVFX()
+		end)
+		
 		self.bv.Parent = nil
 		self.bg.Parent = nil
 		self.idleTrack:Stop()
@@ -110,6 +206,7 @@ function FlightModule.new(player, idleAnimId, moveAnimId, soundId)
 	
 	function self:Destroy()
 		self:Stop()
+		cleanupTrailVFX()
 		
 		if self.bv then self.bv:Destroy() end
 		if self.bg then self.bg:Destroy() end
