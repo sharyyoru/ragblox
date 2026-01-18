@@ -164,7 +164,7 @@ local Skills = {
 	]]
 	["Whirlwind"] = {
 		DisplayName = "Whirlwind",
-		Animation = "rbxassetid://72058025234006", -- TODO: Replace with whirlwind animation
+		Animation = "rbxassetid://109953464351381",
 		Cooldown = 12,
 		Duration = 5.0, -- Max duration when fully held
 		
