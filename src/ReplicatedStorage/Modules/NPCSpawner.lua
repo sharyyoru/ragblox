@@ -289,12 +289,8 @@ function NPCSpawner:OnMobDeath(npc, areaName, mobName, spawnPoint, config)
 	-- Remove from tracking
 	self.SpawnedMobs[spawnId] = nil
 	
-	-- Play death VFX and cleanup corpse (server-side)
-	-- VFX is handled client-side via DeathVFXHandler
-	-- Server handles corpse cleanup after delay
-	DeathVFX.CleanupCorpse(npc, 3) -- 3 second delay before fade
-	
-	-- Schedule respawn after corpse is cleaned up
+	-- Body is hidden immediately by client-side DeathVFXHandler
+	-- Just schedule respawn
 	task.delay(config.RespawnTime, function()
 		-- Respawn at spawn point
 		self:SpawnMob(areaName, mobName, spawnPoint)
