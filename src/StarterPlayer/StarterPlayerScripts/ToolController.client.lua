@@ -361,11 +361,11 @@ local function stopChanneledSkill()
 	
 	print("[ToolController] Stopping channeled skill: " .. (channeledSkillInfo and channeledSkillInfo.DisplayName or "Unknown"))
 	
-	-- Cancel damage thread
-	if channeledDamageThread then
-		task.cancel(channeledDamageThread)
-		channeledDamageThread = nil
-	end
+	-- Set flag to stop the damage loop (flag-based cancellation)
+	channeledSkillActive = false
+	
+	-- Clear thread reference (don't try to cancel, just let it exit via flag)
+	channeledDamageThread = nil
 	
 	-- Stop animation
 	if channeledTrack then
@@ -374,7 +374,6 @@ local function stopChanneledSkill()
 	end
 	
 	-- Reset state
-	channeledSkillActive = false
 	channeledSlotKey = nil
 	channeledSkillInfo = nil
 	isUsingSkill = false
@@ -403,12 +402,22 @@ local function startChanneledSkill(slotKey, skillInfo)
 	end
 	
 	-- Start damage interval thread
-	local damageInterval = skillInfo.DamageInterval or 0.5
+	local damageInterval = skillInfo.DamageInterval or 1.0
+	local maxDuration = skillInfo.Duration or 5
 	local hitCount = 0
+	local localStartTime = channeledStartTime
 	
 	channeledDamageThread = task.spawn(function()
+		-- Deal damage immediately on first hit, then every interval
 		while channeledSkillActive do
-			task.wait(damageInterval)
+			-- Check if we should stop before dealing damage
+			local elapsed = tick() - localStartTime
+			if elapsed >= maxDuration then
+				print("[ToolController] Channeled skill reached max duration (" .. maxDuration .. "s)")
+				-- Use task.defer to avoid calling stopChanneledSkill from within thread
+				task.defer(stopChanneledSkill)
+				break
+			end
 			
 			if not channeledSkillActive then break end
 			
@@ -422,14 +431,10 @@ local function startChanneledSkill(slotKey, skillInfo)
 			
 			-- Fire to server for hit detection
 			AttackRemote:FireServer("Skill_" .. slotKey, skillInfo.SkillName, hitCount)
+			print("[ToolController] Channeled hit " .. hitCount .. " at " .. string.format("%.1f", elapsed) .. "s")
 			
-			-- Check max duration
-			local elapsed = tick() - channeledStartTime
-			if elapsed >= (skillInfo.Duration or 5) then
-				print("[ToolController] Channeled skill reached max duration")
-				stopChanneledSkill()
-				break
-			end
+			-- Wait for next damage interval
+			task.wait(damageInterval)
 		end
 	end)
 end
