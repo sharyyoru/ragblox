@@ -232,6 +232,125 @@ local function onToolUnequipped(tool)
 	end
 end
 
+-- Apply skill dash (for Thrust-like skills)
+local function applySkillDash(skillInfo)
+	if not skillInfo.DashForward or skillInfo.DashForward <= 0 then return end
+	if not Character then return end
+	
+	local hrp = Character:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+	
+	local dashDistance = skillInfo.DashForward
+	local dashDuration = skillInfo.DashDuration or 0.15
+	
+	-- Create trail effect if enabled
+	local trail = nil
+	if skillInfo.LeaveTrail then
+		-- Try to find existing trail on weapon or create one
+		local tool = Character:FindFirstChildOfClass("Tool")
+		if tool then
+			local handle = tool:FindFirstChild("Handle")
+			if handle then
+				-- Create temporary trail
+				local attachment0 = Instance.new("Attachment")
+				attachment0.Position = Vector3.new(0, 0, -1)
+				attachment0.Parent = handle
+				
+				local attachment1 = Instance.new("Attachment")
+				attachment1.Position = Vector3.new(0, 0, 1)
+				attachment1.Parent = handle
+				
+				trail = Instance.new("Trail")
+				trail.Attachment0 = attachment0
+				trail.Attachment1 = attachment1
+				trail.Lifetime = 0.3
+				trail.MinLength = 0.1
+				trail.FaceCamera = true
+				trail.Color = ColorSequence.new(Color3.fromRGB(200, 220, 255))
+				trail.Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 0.3),
+					NumberSequenceKeypoint.new(1, 1),
+				})
+				trail.WidthScale = NumberSequence.new(1)
+				trail.Parent = handle
+			end
+		end
+	end
+	
+	-- Apply dash using BodyVelocity
+	local dashDirection = hrp.CFrame.LookVector
+	local dashVelocity = (dashDistance / dashDuration)
+	
+	local bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.MaxForce = Vector3.new(math.huge, 0, math.huge)
+	bodyVelocity.Velocity = dashDirection * dashVelocity
+	bodyVelocity.Parent = hrp
+	
+	-- Clean up after dash
+	task.delay(dashDuration, function()
+		bodyVelocity:Destroy()
+		
+		-- Remove trail after a short delay
+		if trail then
+			task.delay(0.3, function()
+				if trail.Parent then
+					trail.Attachment0:Destroy()
+					trail.Attachment1:Destroy()
+					trail:Destroy()
+				end
+			end)
+		end
+	end)
+end
+
+-- Play hit VFX for skills
+local function playSkillHitVFX(skillInfo, hitPosition)
+	if not skillInfo.VFX or not skillInfo.VFX.OnHit then return end
+	
+	local vfxPath = skillInfo.VFX.OnHit
+	local vfxFolder = ReplicatedStorage:FindFirstChild("vfx")
+	if not vfxFolder then return end
+	
+	-- Navigate to VFX (supports paths like "skills/thrust-hit")
+	local vfx = vfxFolder
+	for part in string.gmatch(vfxPath, "[^/]+") do
+		vfx = vfx:FindFirstChild(part)
+		if not vfx then return end
+	end
+	
+	-- Clone and position VFX
+	local vfxClone = vfx:Clone()
+	
+	-- Create anchor part at hit position
+	local anchor = Instance.new("Part")
+	anchor.Size = Vector3.new(0.1, 0.1, 0.1)
+	anchor.Position = hitPosition
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.Transparency = 1
+	anchor.Parent = workspace
+	
+	vfxClone.Parent = anchor
+	
+	-- Emit particles
+	if vfxClone:IsA("ParticleEmitter") then
+		vfxClone.Enabled = false
+		vfxClone:Emit(vfxClone:GetAttribute("EmitCount") or 15)
+	else
+		for _, child in pairs(vfxClone:GetDescendants()) do
+			if child:IsA("ParticleEmitter") then
+				child.Enabled = false
+				child:Emit(child:GetAttribute("EmitCount") or 10)
+			end
+		end
+	end
+	
+	-- Cleanup
+	task.delay(2, function()
+		anchor:Destroy()
+	end)
+end
+
 -- Skill execution handler
 local function handleSkill(slotKey)
 	if not isEquipped or not skillHandler then return end
@@ -250,20 +369,40 @@ local function handleSkill(slotKey)
 	
 	isUsingSkill = true
 	
+	-- Apply dash if skill has it (Thrust)
+	if skillInfo.DashForward then
+		applySkillDash(skillInfo)
+	end
+	
 	-- Play skill animation
 	local track, hitTime = skillHandler:PlayAnimation(Humanoid, slotKey)
 	
 	if track then
-		-- Play swing sound at hit time
-		task.delay(hitTime or 0.2, function()
-			if Character then
-				swingSound.Parent = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
-				swingSound:Play()
+		-- Handle multi-hit skills (Sweep)
+		if skillInfo.IsMultiHit and skillInfo.HitTimes then
+			for i, hitT in ipairs(skillInfo.HitTimes) do
+				task.delay(hitT, function()
+					if Character then
+						swingSound.Parent = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
+						swingSound:Play()
+					end
+					
+					-- Fire to server for hit detection (with hit index)
+					AttackRemote:FireServer("Skill_" .. slotKey, skillInfo.SkillName, i)
+				end)
 			end
-			
-			-- Fire to server for hit detection
-			AttackRemote:FireServer("Skill_" .. slotKey, skillInfo.SkillName)
-		end)
+		else
+			-- Single hit skill
+			task.delay(hitTime or 0.2, function()
+				if Character then
+					swingSound.Parent = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
+					swingSound:Play()
+				end
+				
+				-- Fire to server for hit detection
+				AttackRemote:FireServer("Skill_" .. slotKey, skillInfo.SkillName)
+			end)
+		end
 		
 		-- Wait for animation to finish
 		track.Stopped:Once(function()

@@ -60,15 +60,22 @@ local Skills = {
 	},
 	
 	--[[
-		SWEEP - Wide arc attack
-		Horizontal sweep that can hit multiple enemies
+		SWEEP - Wide arc attack (2-stage)
+		Horizontal sweep with two hits at 30 and 60 frames
 	]]
 	["Sweep"] = {
 		DisplayName = "Sweep",
-		Animation = "rbxassetid://93246963192636", -- Replace with actual sweep animation
+		Animation = "rbxassetid://83432713663049",
 		Cooldown = 8,
-		Duration = 0.6,
-		HitTime = 0.25,
+		Duration = 2.2, -- Full animation duration
+		
+		-- Multi-hit configuration (frame times at 30 FPS)
+		IsMultiHit = true,
+		HitTimes = {
+			30 / 30, -- First hit at frame 30 = 1.0 seconds
+			60 / 30, -- Second hit at frame 60 = 2.0 seconds
+		},
+		HitTime = 1.0, -- First hit time for single-hit fallback
 		
 		VFX = {
 			OnCast = nil,
@@ -83,18 +90,23 @@ local Skills = {
 	
 	--[[
 		THRUST - Piercing lunge
-		Quick forward thrust with extended range
+		Quick forward thrust with dash and extended range
 	]]
 	["Thrust"] = {
 		DisplayName = "Thrust",
-		Animation = "rbxassetid://93246963192636", -- Replace with actual thrust animation
+		Animation = "rbxassetid://76362379318834",
 		Cooldown = 4,
 		Duration = 0.5,
 		HitTime = 0.2,
 		
+		-- Dash configuration
+		DashForward = 5, -- Studs to dash forward
+		DashDuration = 0.15, -- How long the dash takes
+		LeaveTrail = true, -- Enable trail effect during dash
+		
 		VFX = {
 			OnCast = nil,
-			OnHit = nil,
+			OnHit = "skills/thrust-hit", -- VFX path under ReplicatedStorage.vfx
 		},
 		
 		IsAoE = false,

@@ -118,7 +118,7 @@ local function applyKnockback(targetHRP, attackerPosition, force)
 	end)
 end
 
-AttackRemote.OnServerEvent:Connect(function(player, skillName, skillRegistryName)
+AttackRemote.OnServerEvent:Connect(function(player, skillName, skillRegistryName, hitIndex)
 	local character = player.Character
 	if not character then return end
 	
@@ -141,6 +141,8 @@ AttackRemote.OnServerEvent:Connect(function(player, skillName, skillRegistryName
 	local skillConfig = nil
 	local damage = 0
 	local hitRange = weaponConfig.HitRange or 6
+	local vfxOnHit = nil
+	local isMultiHit = false
 	
 	if isSkillSlotAttack then
 		-- Skill slot attack - get config from SkillRegistry and weapon slot
@@ -158,6 +160,9 @@ AttackRemote.OnServerEvent:Connect(function(player, skillName, skillRegistryName
 			return
 		end
 		
+		-- Check if multi-hit skill
+		isMultiHit = registrySkill.IsMultiHit or false
+		
 		-- Build skill config from registry + weapon slot multiplier
 		skillConfig = {
 			Animation = registrySkill.Animation,
@@ -169,11 +174,16 @@ AttackRemote.OnServerEvent:Connect(function(player, skillName, skillRegistryName
 			Knockback = registrySkill.Knockback,
 		}
 		
+		-- Get VFX config
+		if registrySkill.VFX and registrySkill.VFX.OnHit then
+			vfxOnHit = registrySkill.VFX.OnHit
+		end
+		
 		-- Calculate damage using weapon base damage and slot multiplier
 		damage = math.floor(weaponConfig.BaseDamage * (slotData.DamageMultiplier or 1.0))
 		hitRange = skillConfig.Range
 		
-		-- Use skill name for cooldown tracking
+		-- Use skill name for cooldown tracking (only track on first hit for multi-hit)
 		skillName = slotData.SkillName .. "_" .. slotKey
 	else
 		-- Regular M1-M4 attack
@@ -188,26 +198,29 @@ AttackRemote.OnServerEvent:Connect(function(player, skillName, skillRegistryName
 		hitRange = skillConfig.Range or weaponConfig.HitRange or 6
 	end
 	
-	-- Check base attack cooldown
+	-- Check base attack cooldown (skip for subsequent multi-hit attacks)
 	local currentTime = tick()
 	local attackCooldown = weaponConfig.AttackCooldown or 0.5
+	local isSubsequentHit = isMultiHit and hitIndex and hitIndex > 1
 	
-	if playerCooldowns[player] and currentTime - playerCooldowns[player] < attackCooldown then
-		return
-	end
-	
-	-- Check skill-specific cooldown
-	if skillConfig.Cooldown then
-		playerSkillCooldowns[player] = playerSkillCooldowns[player] or {}
-		local lastSkillUse = playerSkillCooldowns[player][skillName] or 0
-		
-		if currentTime - lastSkillUse < skillConfig.Cooldown then
+	if not isSubsequentHit then
+		if playerCooldowns[player] and currentTime - playerCooldowns[player] < attackCooldown then
 			return
 		end
-		playerSkillCooldowns[player][skillName] = currentTime
+		
+		-- Check skill-specific cooldown (only on first hit)
+		if skillConfig.Cooldown then
+			playerSkillCooldowns[player] = playerSkillCooldowns[player] or {}
+			local lastSkillUse = playerSkillCooldowns[player][skillName] or 0
+			
+			if currentTime - lastSkillUse < skillConfig.Cooldown then
+				return
+			end
+			playerSkillCooldowns[player][skillName] = currentTime
+		end
+		
+		playerCooldowns[player] = currentTime
 	end
-	
-	playerCooldowns[player] = currentTime
 	
 	-- Get enemies in range
 	local enemies = getNearbyEnemies(character, hitRange)
@@ -238,15 +251,16 @@ AttackRemote.OnServerEvent:Connect(function(player, skillName, skillRegistryName
 			applyKnockback(target.HRP, humanoidRootPart.Position, skillConfig.Knockback)
 		end
 		
-		-- Send damage info to client for UI
-		DamageRemote:FireClient(player, damage, target.HRP.Position, target.Character.Name)
+		-- Send damage info to client for UI (include VFX path if available)
+		DamageRemote:FireClient(player, damage, target.HRP.Position, target.Character.Name, vfxOnHit)
 		
-		print(string.format("[Combat] %s hit %s for %d damage (%s - %s)", 
+		print(string.format("[Combat] %s hit %s for %d damage (%s - %s%s)", 
 			player.Name, 
 			target.Character.Name, 
 			damage,
 			weaponId,
-			skillName))
+			skillName,
+			hitIndex and (" hit " .. hitIndex) or ""))
 	end
 end)
 

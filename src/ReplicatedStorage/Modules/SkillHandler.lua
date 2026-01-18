@@ -101,6 +101,13 @@ function SkillHandler:GetSlotSkillInfo(slotKey)
 		Knockback = skillConfig.Knockback,
 		RangeMultiplier = skillConfig.RangeMultiplier,
 		VFX = skillConfig.VFX,
+		-- Multi-hit support
+		IsMultiHit = skillConfig.IsMultiHit,
+		HitTimes = skillConfig.HitTimes,
+		-- Dash support
+		DashForward = skillConfig.DashForward,
+		DashDuration = skillConfig.DashDuration,
+		LeaveTrail = skillConfig.LeaveTrail,
 	}
 end
 

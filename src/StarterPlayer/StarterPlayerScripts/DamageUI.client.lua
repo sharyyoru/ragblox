@@ -272,7 +272,7 @@ local function playHitSound(worldPosition)
 end
 
 -- Spawn hit VFX at position (plays once, no looping)
-local function spawnHitVFX(worldPosition)
+local function spawnHitVFX(worldPosition, customVfxPath)
 	-- Create attachment at hit position
 	local part = Instance.new("Part")
 	part.Name = "HitVFXAnchor"
@@ -283,8 +283,22 @@ local function spawnHitVFX(worldPosition)
 	part.Transparency = 1
 	part.Parent = workspace
 	
+	-- Get VFX to use (custom path or default)
+	local vfxSource = NormalHitVFX
+	if customVfxPath then
+		-- Navigate to custom VFX (supports paths like "skills/thrust-hit")
+		local customVfx = VFX
+		for pathPart in string.gmatch(customVfxPath, "[^/]+") do
+			customVfx = customVfx:FindFirstChild(pathPart)
+			if not customVfx then break end
+		end
+		if customVfx then
+			vfxSource = customVfx
+		end
+	end
+	
 	-- Clone and parent the VFX
-	local vfxClone = NormalHitVFX:Clone()
+	local vfxClone = vfxSource:Clone()
 	vfxClone.Parent = part
 	
 	-- Emit particles once (disable looping)
@@ -310,12 +324,12 @@ local function spawnHitVFX(worldPosition)
 end
 
 -- Listen for damage events
-DamageRemote.OnClientEvent:Connect(function(damage, worldPosition, targetName)
+DamageRemote.OnClientEvent:Connect(function(damage, worldPosition, targetName, skillVfxPath)
 	-- Show damage number at hit position
 	createDamageNumber(damage, worldPosition)
 	
-	-- Spawn hit VFX and sound
-	spawnHitVFX(worldPosition)
+	-- Spawn hit VFX and sound (use custom VFX if provided)
+	spawnHitVFX(worldPosition, skillVfxPath)
 	playHitSound(worldPosition)
 	
 	-- Update total counter
