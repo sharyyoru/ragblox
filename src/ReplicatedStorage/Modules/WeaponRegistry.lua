@@ -160,14 +160,14 @@ local Weapons = {
 		
 		-- Skill slots (Z, X, C, V, F)
 		SkillSlots = {
-			Z = { SkillName = "Bash", DamageMultiplier = 1.5 },
-			X = { SkillName = "Sweep", DamageMultiplier = 1.3 },
-			C = { SkillName = "Thrust", DamageMultiplier = 1.4 },
+			Z = { SkillName = "Bash", DamageMultiplier = 2.4 },
+			X = { SkillName = "Sweep", DamageMultiplier = 2.0},
+			C = { SkillName = "Thrust", DamageMultiplier = 3.2 },
 			V = nil,
 			F = nil,
 		},
 	},
-	
+
 	["Tomahawk"] = {
 		WeaponStyle = "1h",
 		BaseDamage = 12,
@@ -198,21 +198,21 @@ local Weapons = {
 		ComboSequence = {"M1", "M2", "M3", "M4"},
 		
 		SkillSlots = {
-			Z = { SkillName = "Bash", DamageMultiplier = 1.4 },
-			X = { SkillName = "Sweep", DamageMultiplier = 1.2 },
+			Z = { SkillName = "Bash", DamageMultiplier = 2.4 },
+			X = { SkillName = "Sweep", DamageMultiplier = 2.0 },
 			C = { SkillName = "Thrust", DamageMultiplier = 1.3 },
 			V = nil,
 			F = nil,
 		},
 	},
-	
+
 	--[[
 		2-HANDED WEAPONS (2h folder)
 		Use 2h animation set
 	]]
 	["Caliburn"] = {
 		WeaponStyle = "2h",
-		BaseDamage = 18,
+		BaseDamage = 99,
 		HitRange = 8,
 		AttackCooldown = 0.7,
 		ComboResetTime = 2.0,
