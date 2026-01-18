@@ -250,7 +250,7 @@ local Weapons = {
 
 	["GreatSword"] = {
 		WeaponStyle = "2h",
-		BaseDamage = 99,
+		BaseDamage = 19,
 		HitRange = 8,
 		AttackCooldown = 0.7,
 		ComboResetTime = 2.0,
