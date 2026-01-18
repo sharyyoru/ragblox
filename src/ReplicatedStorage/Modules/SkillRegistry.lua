@@ -170,7 +170,7 @@ local Skills = {
 		
 		-- Channel/Hold configuration
 		IsChanneled = true, -- Must be held to continue
-		DamageInterval = 0.5, -- Deal damage every 0.5 seconds
+		DamageInterval = 1.0, -- Deal damage every 1 second
 		MinDuration = 0.5, -- Minimum time before can cancel
 		
 		VFX = {
