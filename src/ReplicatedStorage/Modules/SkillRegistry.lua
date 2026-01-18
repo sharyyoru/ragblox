@@ -141,7 +141,7 @@ local Skills = {
 	]]
 	["Slam"] = {
 		DisplayName = "Slam",
-		Animation = "rbxassetid://93246963192636", -- Replace with actual slam animation
+		Animation = "rbxassetid://72058025234006",
 		Cooldown = 10,
 		Duration = 1.0,
 		HitTime = 0.5,
@@ -155,6 +155,33 @@ local Skills = {
 		AoERadius = 10,
 		Knockback = 20,
 		RangeMultiplier = 0.6,
+	},
+	
+	--[[
+		WHIRLWIND - Spinning AoE attack
+		Hold to spin, dealing damage per second
+		Max duration 5 seconds
+	]]
+	["Whirlwind"] = {
+		DisplayName = "Whirlwind",
+		Animation = "rbxassetid://72058025234006", -- TODO: Replace with whirlwind animation
+		Cooldown = 12,
+		Duration = 5.0, -- Max duration when fully held
+		
+		-- Channel/Hold configuration
+		IsChanneled = true, -- Must be held to continue
+		DamageInterval = 0.5, -- Deal damage every 0.5 seconds
+		MinDuration = 0.5, -- Minimum time before can cancel
+		
+		VFX = {
+			OnCast = nil,
+			OnHit = nil,
+		},
+		
+		IsAoE = true,
+		AoERadius = 8,
+		Knockback = 5,
+		RangeMultiplier = 1.0,
 	},
 }
 

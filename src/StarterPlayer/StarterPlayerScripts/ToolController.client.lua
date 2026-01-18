@@ -42,6 +42,14 @@ local isUsingSkill = false
 local currentWeaponStyle = "1h"
 local currentWeaponName = nil
 
+-- Channeled skill state
+local channeledSkillActive = false
+local channeledSlotKey = nil
+local channeledSkillInfo = nil
+local channeledTrack = nil
+local channeledStartTime = 0
+local channeledDamageThread = nil
+
 -- Skill key mappings
 local SKILL_KEYS = {
 	[Enum.KeyCode.Z] = "Z",
@@ -347,6 +355,85 @@ local function playSkillHitVFX(skillInfo, hitPosition)
 	end)
 end
 
+-- Stop channeled skill
+local function stopChanneledSkill()
+	if not channeledSkillActive then return end
+	
+	print("[ToolController] Stopping channeled skill: " .. (channeledSkillInfo and channeledSkillInfo.DisplayName or "Unknown"))
+	
+	-- Cancel damage thread
+	if channeledDamageThread then
+		task.cancel(channeledDamageThread)
+		channeledDamageThread = nil
+	end
+	
+	-- Stop animation
+	if channeledTrack then
+		channeledTrack:Stop(0.2)
+		channeledTrack = nil
+	end
+	
+	-- Reset state
+	channeledSkillActive = false
+	channeledSlotKey = nil
+	channeledSkillInfo = nil
+	isUsingSkill = false
+	
+	-- Return to idle
+	if animLoader and not isSprinting then
+		animLoader:PlayAnimation("Idle", 0.2)
+	end
+end
+
+-- Start channeled skill (Whirlwind)
+local function startChanneledSkill(slotKey, skillInfo)
+	print("[ToolController] Starting channeled skill: " .. skillInfo.DisplayName)
+	
+	channeledSkillActive = true
+	channeledSlotKey = slotKey
+	channeledSkillInfo = skillInfo
+	channeledStartTime = tick()
+	isUsingSkill = true
+	
+	-- Play looping animation
+	local track, _ = skillHandler:PlayAnimation(Humanoid, slotKey)
+	if track then
+		track.Looped = true
+		channeledTrack = track
+	end
+	
+	-- Start damage interval thread
+	local damageInterval = skillInfo.DamageInterval or 0.5
+	local hitCount = 0
+	
+	channeledDamageThread = task.spawn(function()
+		while channeledSkillActive do
+			task.wait(damageInterval)
+			
+			if not channeledSkillActive then break end
+			
+			hitCount = hitCount + 1
+			
+			-- Play swing sound
+			if Character then
+				local rootPart = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
+				playSound(SWING_SOUND_ID, 0.4, rootPart)
+			end
+			
+			-- Fire to server for hit detection
+			AttackRemote:FireServer("Skill_" .. slotKey, skillInfo.SkillName, hitCount)
+			
+			-- Check max duration
+			local elapsed = tick() - channeledStartTime
+			if elapsed >= (skillInfo.Duration or 5) then
+				print("[ToolController] Channeled skill reached max duration")
+				stopChanneledSkill()
+				break
+			end
+		end
+	end)
+end
+
 -- Skill execution handler
 local function handleSkill(slotKey)
 	if not isEquipped or not skillHandler then return end
@@ -362,6 +449,12 @@ local function handleSkill(slotKey)
 	end
 	
 	print("[ToolController] Using skill: " .. skillInfo.DisplayName .. " (" .. slotKey .. ")")
+	
+	-- Handle channeled skills differently
+	if skillInfo.IsChanneled then
+		startChanneledSkill(slotKey, skillInfo)
+		return
+	end
 	
 	isUsingSkill = true
 	
@@ -415,6 +508,26 @@ local function handleSkill(slotKey)
 		end)
 	else
 		isUsingSkill = false
+	end
+end
+
+-- Handle skill key release (for channeled skills)
+local function handleSkillRelease(slotKey)
+	if channeledSkillActive and channeledSlotKey == slotKey then
+		-- Check minimum duration
+		local elapsed = tick() - channeledStartTime
+		local minDuration = channeledSkillInfo and channeledSkillInfo.MinDuration or 0.5
+		
+		if elapsed >= minDuration then
+			stopChanneledSkill()
+		else
+			-- Wait for minimum duration then stop
+			task.delay(minDuration - elapsed, function()
+				if channeledSkillActive and channeledSlotKey == slotKey then
+					stopChanneledSkill()
+				end
+			end)
+		end
 	end
 end
 
@@ -576,6 +689,14 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	local slotKey = SKILL_KEYS[input.KeyCode]
 	if slotKey then
 		handleSkill(slotKey)
+	end
+end)
+
+-- Handle key release for channeled skills
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	local slotKey = SKILL_KEYS[input.KeyCode]
+	if slotKey then
+		handleSkillRelease(slotKey)
 	end
 end)
 

@@ -200,7 +200,7 @@ local Weapons = {
 		SkillSlots = {
 			Z = { SkillName = "Bash", DamageMultiplier = 2.4 },
 			X = { SkillName = "Sweep", DamageMultiplier = 2.0 },
-			C = { SkillName = "Thrust", DamageMultiplier = 1.3 },
+			C = { SkillName = "Slam", DamageMultiplier = 2.5 },
 			V = nil,
 			F = nil,
 		},
@@ -242,7 +242,7 @@ local Weapons = {
 		SkillSlots = {
 			Z = { SkillName = "Bash", DamageMultiplier = 1.8 },
 			X = { SkillName = "Sweep", DamageMultiplier = 1.5 },
-			C = nil,
+			C = { SkillName = "Whirlwind", DamageMultiplier = 1.0 },
 			V = nil,
 			F = { SkillName = "Slam", DamageMultiplier = 2.5 },
 		},

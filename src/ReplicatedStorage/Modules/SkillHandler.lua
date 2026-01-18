@@ -108,6 +108,10 @@ function SkillHandler:GetSlotSkillInfo(slotKey)
 		DashForward = skillConfig.DashForward,
 		DashDuration = skillConfig.DashDuration,
 		LeaveTrail = skillConfig.LeaveTrail,
+		-- Channeled skill support
+		IsChanneled = skillConfig.IsChanneled,
+		DamageInterval = skillConfig.DamageInterval,
+		MinDuration = skillConfig.MinDuration,
 	}
 end
 
