@@ -24,7 +24,9 @@ local COOLDOWN_COLOR = Color3.fromRGB(80, 80, 90)
 local CHARGING_COLOR = Color3.fromRGB(200, 200, 200)
 local SLOT_SIZE = 44
 local SLOT_SPACING = 8
-local BASE_X_OFFSET = -130 -- Start position (left of dash button)
+local DASH_BUTTON_X = -70 -- Dash button X offset
+local DASH_BUTTON_SIZE = 44
+local BASE_X_OFFSET = DASH_BUTTON_X - DASH_BUTTON_SIZE - SLOT_SPACING -- Start position (left of dash button)
 
 -- State
 local skillHandler = SkillHandler.new()
@@ -228,8 +230,10 @@ local function updateSkillSlots(weaponName)
 	local slots = skillHandler:GetActiveSlots()
 	
 	-- Position slots from right to left (next to dash button)
+	-- Dash button is at (1, -70, 1, -70) with no anchor, so its left edge is at -70 - 44 = -114
 	local slotIndex = 0
 	for _, skillInfo in ipairs(slots) do
+		-- Position without anchor to match dash button positioning
 		local xOffset = BASE_X_OFFSET - (slotIndex * (SLOT_SIZE + SLOT_SPACING))
 		
 		local slotData = createSkillSlot(
@@ -238,8 +242,9 @@ local function updateSkillSlots(weaponName)
 			skillInfo.DisplayName
 		)
 		
+		-- Use same positioning style as dash button (no anchor, offset from corner)
 		slotData.Frame.Position = UDim2.new(1, xOffset, 1, -70)
-		slotData.Frame.AnchorPoint = Vector2.new(1, 1)
+		slotData.Frame.AnchorPoint = Vector2.new(0, 0) -- Match dash button's anchor
 		slotData.Frame.Parent = screenGui
 		
 		-- Store cooldown duration from skill config

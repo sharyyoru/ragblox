@@ -161,8 +161,8 @@ local Weapons = {
 		-- Skill slots (Z, X, C, V, F)
 		SkillSlots = {
 			Z = { SkillName = "Bash", DamageMultiplier = 1.5 },
-			X = nil,
-			C = nil,
+			X = { SkillName = "Sweep", DamageMultiplier = 1.3 },
+			C = { SkillName = "Thrust", DamageMultiplier = 1.4 },
 			V = nil,
 			F = nil,
 		},
@@ -199,8 +199,8 @@ local Weapons = {
 		
 		SkillSlots = {
 			Z = { SkillName = "Bash", DamageMultiplier = 1.4 },
-			X = nil,
-			C = nil,
+			X = { SkillName = "Sweep", DamageMultiplier = 1.2 },
+			C = { SkillName = "Thrust", DamageMultiplier = 1.3 },
 			V = nil,
 			F = nil,
 		},

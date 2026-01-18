@@ -67,15 +67,15 @@ local Skills = {
 		DisplayName = "Sweep",
 		Animation = "rbxassetid://83432713663049",
 		Cooldown = 8,
-		Duration = 2.2, -- Full animation duration
+		Duration = 1.2, -- Full animation duration
 		
-		-- Multi-hit configuration (frame times at 30 FPS)
+		-- Multi-hit configuration (frame times at 60 FPS - Roblox standard)
 		IsMultiHit = true,
 		HitTimes = {
-			30 / 30, -- First hit at frame 30 = 1.0 seconds
-			60 / 30, -- Second hit at frame 60 = 2.0 seconds
+			30 / 60, -- First hit at frame 30 = 0.5 seconds
+			60 / 60, -- Second hit at frame 60 = 1.0 seconds
 		},
-		HitTime = 1.0, -- First hit time for single-hit fallback
+		HitTime = 0.5, -- First hit time for single-hit fallback
 		
 		VFX = {
 			OnCast = nil,
