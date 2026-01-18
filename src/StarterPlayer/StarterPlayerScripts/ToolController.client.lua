@@ -387,8 +387,9 @@ local function stopChanneledSkill()
 	channeledSkillInfo = nil
 	isUsingSkill = false
 	
-	-- Return to idle
-	if animLoader and not isSprinting then
+	-- Return to idle (but not if flying/landing)
+	local isLanding = flightInstance and flightInstance:IsLanding()
+	if animLoader and not isSprinting and not flightActive and not isLanding then
 		animLoader:PlayAnimation("Idle", 0.2)
 	end
 end
@@ -760,10 +761,16 @@ local function updateSprint()
 		isSprinting = false
 		Humanoid.WalkSpeed = WALK_SPEED
 		animLoader:StopAnimation("Sprint", 0.2)
-		if not combatHandler:IsCurrentlyAttacking() then
+		-- Don't play idle if flying or landing
+		local isLanding = flightInstance and flightInstance:IsLanding()
+		if not combatHandler:IsCurrentlyAttacking() and not flightActive and not isLanding then
 			animLoader:PlayAnimation("Idle", 0.2)
 		end
 	elseif not isMoving and not isSprinting and not combatHandler:IsCurrentlyAttacking() then
+		-- Don't play idle if flying or landing
+		local isLanding = flightInstance and flightInstance:IsLanding()
+		if flightActive or isLanding then return end
+		
 		-- Ensure idle is playing when stationary
 		local idleTrack = animLoader:GetTrack("Idle")
 		if idleTrack and not idleTrack.IsPlaying then
