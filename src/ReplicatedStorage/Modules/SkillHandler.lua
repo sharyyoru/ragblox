@@ -112,6 +112,11 @@ function SkillHandler:GetSlotSkillInfo(slotKey)
 		IsChanneled = skillConfig.IsChanneled,
 		DamageInterval = skillConfig.DamageInterval,
 		MinDuration = skillConfig.MinDuration,
+		-- Flight skill support
+		IsFlight = skillConfig.IsFlight,
+		IdleAnimation = skillConfig.IdleAnimation,
+		MoveAnimation = skillConfig.MoveAnimation,
+		Sound = skillConfig.Sound,
 	}
 end
 

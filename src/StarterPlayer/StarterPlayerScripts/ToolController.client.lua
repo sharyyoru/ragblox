@@ -20,6 +20,7 @@ local CombatHandler = require(Modules:WaitForChild("CombatHandler"))
 local WeaponRegistry = require(Modules:WaitForChild("WeaponRegistry"))
 local SkillHandler = require(Modules:WaitForChild("SkillHandler"))
 local SkillRegistry = require(Modules:WaitForChild("SkillRegistry"))
+local FlightModule = require(Modules:WaitForChild("FlightModule"))
 
 print("[ToolController] Modules loaded")
 
@@ -49,6 +50,14 @@ local channeledSkillInfo = nil
 local channeledTrack = nil
 local channeledStartTime = 0
 local channeledDamageThread = nil
+
+-- Flight state
+local flightInstance = nil
+local flightActive = false
+local flightSlotKey = nil
+local flightSkillInfo = nil
+local flightStartTime = 0
+local flightMaxDurationThread = nil
 
 -- Skill key mappings
 local SKILL_KEYS = {
@@ -384,6 +393,73 @@ local function stopChanneledSkill()
 	end
 end
 
+-- Stop flight skill
+local function stopFlight()
+	if not flightActive then return end
+	
+	print("[ToolController] Stopping flight: " .. (flightSkillInfo and flightSkillInfo.DisplayName or "Unknown"))
+	
+	flightActive = false
+	
+	-- Stop the flight module
+	if flightInstance then
+		flightInstance:Stop()
+	end
+	
+	-- Cancel max duration thread
+	flightMaxDurationThread = nil
+	
+	-- Reset state
+	flightSlotKey = nil
+	flightSkillInfo = nil
+	isUsingSkill = false
+	
+	-- Return to idle
+	if animLoader and not isSprinting then
+		animLoader:PlayAnimation("Idle", 0.2)
+	end
+end
+
+-- Start flight skill
+local function startFlight(slotKey, skillInfo)
+	print("[ToolController] Starting flight: " .. skillInfo.DisplayName)
+	
+	flightActive = true
+	flightSlotKey = slotKey
+	flightSkillInfo = skillInfo
+	flightStartTime = tick()
+	isUsingSkill = true
+	
+	-- Create or reuse flight instance
+	if not flightInstance then
+		flightInstance = FlightModule.new(
+			Player,
+			skillInfo.IdleAnimation,
+			skillInfo.MoveAnimation,
+			skillInfo.Sound
+		)
+	end
+	
+	-- Start flying
+	flightInstance:Start()
+	
+	-- Max duration thread
+	local maxDuration = skillInfo.Duration or 10
+	local localStartTime = flightStartTime
+	
+	flightMaxDurationThread = task.spawn(function()
+		while flightActive do
+			local elapsed = tick() - localStartTime
+			if elapsed >= maxDuration then
+				print("[ToolController] Flight reached max duration (" .. maxDuration .. "s)")
+				task.defer(stopFlight)
+				break
+			end
+			task.wait(0.5)
+		end
+	end)
+end
+
 -- Start channeled skill (Whirlwind)
 local function startChanneledSkill(slotKey, skillInfo)
 	print("[ToolController] Starting channeled skill: " .. skillInfo.DisplayName)
@@ -457,7 +533,11 @@ local function handleSkill(slotKey)
 	
 	-- Handle channeled skills differently
 	if skillInfo.IsChanneled then
-		startChanneledSkill(slotKey, skillInfo)
+		if skillInfo.IsFlight then
+			startFlight(slotKey, skillInfo)
+		else
+			startChanneledSkill(slotKey, skillInfo)
+		end
 		return
 	end
 	
@@ -516,8 +596,26 @@ local function handleSkill(slotKey)
 	end
 end
 
--- Handle skill key release (for channeled skills)
+-- Handle skill key release (for channeled skills and flight)
 local function handleSkillRelease(slotKey)
+	-- Handle flight release
+	if flightActive and flightSlotKey == slotKey then
+		local elapsed = tick() - flightStartTime
+		local minDuration = flightSkillInfo and flightSkillInfo.MinDuration or 0.5
+		
+		if elapsed >= minDuration then
+			stopFlight()
+		else
+			task.delay(minDuration - elapsed, function()
+				if flightActive and flightSlotKey == slotKey then
+					stopFlight()
+				end
+			end)
+		end
+		return
+	end
+	
+	-- Handle channeled skill release (Whirlwind)
 	if channeledSkillActive and channeledSlotKey == slotKey then
 		-- Check minimum duration
 		local elapsed = tick() - channeledStartTime

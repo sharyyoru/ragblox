@@ -183,6 +183,33 @@ local Skills = {
 		Knockback = 5,
 		RangeMultiplier = 1.0,
 	},
+
+	--[[
+		FLIGHT - Flying skill
+		Hold to fly, release to land
+	]]
+	["Flight"] = {
+		DisplayName = "Flight",
+		IdleAnimation = "rbxassetid://140427928219377",
+		MoveAnimation = "rbxassetid://138146725325662",
+		Sound = "rbxassetid://3308152153",
+		Cooldown = 8,
+		Duration = 10.0, -- Max flight duration
+		
+		-- Channel/Hold configuration
+		IsChanneled = true,
+		IsFlight = true, -- Special flag for flight handling
+		MinDuration = 0.5,
+		
+		VFX = {
+			OnCast = nil,
+			OnHit = nil,
+		},
+		
+		IsAoE = false,
+		Knockback = 0,
+		RangeMultiplier = 0,
+	},
 }
 
 -- Default skill template (fallback)

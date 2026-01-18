@@ -244,7 +244,7 @@ local Weapons = {
 			X = { SkillName = "Sweep", DamageMultiplier = 1.5 },
 			C = { SkillName = "Whirlwind", DamageMultiplier = 1.0 },
 			V = nil,
-			F = { SkillName = "Slam", DamageMultiplier = 2.5 },
+			F = { SkillName = "Flight", DamageMultiplier = 0 },
 		},
 	},
 
