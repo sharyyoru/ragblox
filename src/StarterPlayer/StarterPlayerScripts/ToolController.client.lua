@@ -63,23 +63,19 @@ local DASH_COOLDOWN = 5
 local DASH_FORCE = 80
 local DASH_DURATION = 0.3
 
--- Create swing sound
-local swingSound = Instance.new("Sound")
-swingSound.SoundId = SWING_SOUND_ID
-swingSound.Volume = 0.5
-swingSound.Name = "SwingSound"
-
--- Create equip sound
-local equipSound = Instance.new("Sound")
-equipSound.SoundId = EQUIP_SOUND_ID
-equipSound.Volume = 0.4
-equipSound.Name = "EquipSound"
-
--- Create dash sound
-local dashSound = Instance.new("Sound")
-dashSound.SoundId = DASH_SOUND_ID
-dashSound.Volume = 0.5
-dashSound.Name = "DashSound"
+-- Helper function to play a sound at a position (creates a temporary clone)
+local function playSound(soundId, volume, parent)
+	if not parent then return end
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundId
+	sound.Volume = volume or 0.5
+	sound.Parent = parent
+	sound:Play()
+	sound.Ended:Once(function()
+		sound:Destroy()
+	end)
+	return sound
+end
 
 -- Dash state
 local isDashing = false
@@ -174,8 +170,8 @@ local function onToolEquipped(tool)
 			equipTrack:Play(0.1)
 			
 			-- Play equip sound
-			equipSound.Parent = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
-			equipSound:Play()
+			local rootPart = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
+			playSound(EQUIP_SOUND_ID, 0.4, rootPart)
 			
 			print("[ToolController] Playing equip animation")
 			
@@ -383,8 +379,8 @@ local function handleSkill(slotKey)
 			for i, hitT in ipairs(skillInfo.HitTimes) do
 				task.delay(hitT, function()
 					if Character then
-						swingSound.Parent = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
-						swingSound:Play()
+						local rootPart = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
+						playSound(SWING_SOUND_ID, 0.5, rootPart)
 					end
 					
 					-- Fire to server for hit detection (with hit index)
@@ -395,8 +391,8 @@ local function handleSkill(slotKey)
 			-- Single hit skill
 			task.delay(hitTime or 0.2, function()
 				if Character then
-					swingSound.Parent = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
-					swingSound:Play()
+					local rootPart = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
+					playSound(SWING_SOUND_ID, 0.5, rootPart)
 				end
 				
 				-- Fire to server for hit detection
@@ -442,8 +438,8 @@ local function handleAttack()
 		task.delay(hitTiming, function()
 			-- Play swing sound at the moment of impact
 			if Character then
-				swingSound.Parent = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
-				swingSound:Play()
+				local rootPart = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
+				playSound(SWING_SOUND_ID, 0.5, rootPart)
 			end
 			
 			-- Fire to server for hit detection at the moment of impact
@@ -483,8 +479,7 @@ local function handleDash()
 	-- Play dash sound
 	local hrp = Character:FindFirstChild("HumanoidRootPart") or Character.PrimaryPart
 	if hrp then
-		dashSound.Parent = hrp
-		dashSound:Play()
+		playSound(DASH_SOUND_ID, 0.5, hrp)
 	end
 	
 	-- Play dash animation (use weapon dash track or load global one)
